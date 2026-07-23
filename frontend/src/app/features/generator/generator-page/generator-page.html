@@ -1,0 +1,36 @@
+<div class="max-w-4xl mx-auto px-4 py-10 flex flex-col gap-6">
+  <header class="flex flex-col gap-1">
+    <h1 class="text-2xl font-semibold text-gray-900">Personnalisation d'image produit</h1>
+    <p class="text-sm text-gray-500">
+      Transformez vos visuels produit génériques (fond, ambiance, mannequin) en quelques secondes.
+    </p>
+  </header>
+
+  @if (errorMessage()) {
+    <app-error-toast [message]="errorMessage()!" (dismissed)="dismissError()" />
+  }
+
+  <app-image-dropzone
+    [previewUrl]="previewUrl()"
+    (fileSelected)="onFileSelected($event)"
+    (validationError)="onValidationError($event)"
+  />
+
+  <app-prompt-input [value]="prompt()" (valueChange)="prompt.set($event)" />
+
+  <button
+    type="button"
+    class="self-start rounded-lg bg-blue-600 text-white text-sm font-medium px-5 py-2.5 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
+    [disabled]="!canSubmit()"
+    (click)="onGenerate()"
+  >
+    @if (status() === 'loading') {
+      <span class="h-4 w-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></span>
+    }
+    {{ status() === 'loading' ? 'Génération en cours...' : 'Générer' }}
+  </button>
+
+  @if (previewUrl() && (status() === 'loading' || status() === 'success')) {
+    <app-result-comparison [beforeUrl]="previewUrl()" [afterUrl]="resultUrl()" />
+  }
+</div>

@@ -1,0 +1,14 @@
+# Python / backend
+backend/.venv/
+backend/.env
+**/__pycache__/
+*.pyc
+
+# Node / frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+
+# OS / editor
+.DS_Store
+*.swp

@@ -1,0 +1,19 @@
+<label
+  class="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-lg cursor-pointer transition-colors overflow-hidden"
+  [class.border-blue-500]="isDragOver()"
+  [class.bg-blue-50]="isDragOver()"
+  [class.border-gray-300]="!isDragOver()"
+  (drop)="onDrop($event)"
+  (dragover)="onDragOver($event)"
+  (dragleave)="onDragLeave()"
+>
+  @if (previewUrl()) {
+    <img [src]="previewUrl()" alt="Aperçu du produit" class="max-h-full max-w-full object-contain" />
+  } @else {
+    <div class="flex flex-col items-center justify-center text-gray-500 px-4 text-center">
+      <span class="text-sm">Glissez-déposez une image produit ici, ou cliquez pour en sélectionner une</span>
+      <span class="text-xs text-gray-400 mt-1">JPG, PNG, WEBP — 10 Mo max</span>
+    </div>
+  }
+  <input type="file" accept="image/jpeg,image/png,image/webp" class="hidden" (change)="onFileInputChange($event)" />
+</label>
