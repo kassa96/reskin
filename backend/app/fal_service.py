@@ -1,5 +1,7 @@
 import asyncio
 import logging
+import tempfile
+import urllib.request
 
 import fal_client
 
@@ -14,8 +16,27 @@ class FalApiError(Exception):
     """Fal.ai returned an error or an unexpected response."""
 
 
+class FalContentPolicyError(FalApiError):
+    """Fal.ai rejected the request because it was flagged by its content checker."""
+
+
 class FalTimeoutError(Exception):
     """Fal.ai call exceeded the configured timeout."""
+
+
+def _raise_fal_error(exc: fal_client.FalClientError) -> None:
+    if isinstance(exc, fal_client.FalClientHTTPError) and "content_policy_violation" in str(exc):
+        raise FalContentPolicyError(str(exc)) from exc
+    raise FalApiError(str(exc)) from exc
+
+
+def download_image(url: str) -> str:
+    """Download a Fal.ai result image to a local temp file and return its path."""
+    with urllib.request.urlopen(url) as response:
+        data = response.read()
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+        tmp.write(data)
+        return tmp.name
 
 
 def build_prompt(user_prompt: str) -> str:
@@ -27,21 +48,24 @@ def build_prompt(user_prompt: str) -> str:
     )
 
 
-async def generate_image(image_path: str, prompt: str) -> dict:
+async def generate_image(image_paths: list[str], prompt: str) -> dict:
     enhanced_prompt = build_prompt(prompt)
+    print("-----")
+    print(enhanced_prompt)
+    print("-----")
     try:
-        image_url = await asyncio.wait_for(
-            _client.upload_file(image_path),
+        image_urls = await asyncio.wait_for(
+            asyncio.gather(*(_client.upload_file(path) for path in image_paths)),
             timeout=settings.fal_timeout_seconds,
         )
-        logger.info("Image uploaded to Fal CDN")
+        logger.info("%d image(s) uploaded to Fal CDN", len(image_urls))
 
         result = await asyncio.wait_for(
             _client.subscribe(
                 settings.fal_model,
                 arguments={
                     "prompt": enhanced_prompt,
-                    "image_urls": [image_url],
+                    "image_urls": image_urls,
                     "num_images": 1,
                     "output_format": "png",
                 },
@@ -54,7 +78,39 @@ async def generate_image(image_path: str, prompt: str) -> dict:
         raise FalTimeoutError("Fal.ai call timed out") from exc
     except fal_client.FalClientError as exc:
         logger.exception("Fal.ai call failed")
-        raise FalApiError(str(exc)) from exc
+        _raise_fal_error(exc)
+
+    images = result.get("images") or []
+    if not images:
+        logger.error("Fal.ai response contained no images: %s", result)
+        raise FalApiError("Fal.ai response contained no images")
+
+    return {
+        "image_url": images[0]["url"],
+        "description": result.get("description", ""),
+    }
+
+
+async def generate_image_from_text(prompt: str) -> dict:
+    try:
+        result = await asyncio.wait_for(
+            _client.subscribe(
+                settings.fal_text_to_image_model,
+                arguments={
+                    "prompt": prompt,
+                    "num_images": 1,
+                    "output_format": "png",
+                },
+                with_logs=True,
+            ),
+            timeout=settings.fal_timeout_seconds,
+        )
+    except asyncio.TimeoutError as exc:
+        logger.exception("Fal.ai text-to-image call timed out")
+        raise FalTimeoutError("Fal.ai call timed out") from exc
+    except fal_client.FalClientError as exc:
+        logger.exception("Fal.ai text-to-image call failed")
+        _raise_fal_error(exc)
 
     images = result.get("images") or []
     if not images:

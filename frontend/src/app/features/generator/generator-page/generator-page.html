@@ -6,31 +6,137 @@
     </p>
   </header>
 
+  <ol class="flex items-center gap-3 text-sm">
+    <li
+      class="flex items-center gap-2"
+      [class.text-blue-600]="currentStep() === 1"
+      [class.font-semibold]="currentStep() === 1"
+      [class.text-gray-400]="currentStep() !== 1"
+    >
+      <span
+        class="flex h-6 w-6 items-center justify-center rounded-full border text-xs"
+        [class.border-blue-600]="currentStep() === 1"
+        [class.bg-blue-600]="currentStep() === 1"
+        [class.text-white]="currentStep() === 1"
+        [class.border-gray-300]="currentStep() !== 1"
+      >
+        1
+      </span>
+      Produit
+    </li>
+    <li class="h-px flex-1 bg-gray-200"></li>
+    <li
+      class="flex items-center gap-2"
+      [class.text-blue-600]="currentStep() === 2"
+      [class.font-semibold]="currentStep() === 2"
+      [class.text-gray-400]="currentStep() !== 2"
+    >
+      <span
+        class="flex h-6 w-6 items-center justify-center rounded-full border text-xs"
+        [class.border-blue-600]="currentStep() === 2"
+        [class.bg-blue-600]="currentStep() === 2"
+        [class.text-white]="currentStep() === 2"
+        [class.border-gray-300]="currentStep() !== 2"
+      >
+        2
+      </span>
+      Génération
+    </li>
+  </ol>
+
   @if (errorMessage()) {
     <app-error-toast [message]="errorMessage()!" (dismissed)="dismissError()" />
   }
 
-  <app-image-dropzone
-    [previewUrl]="previewUrl()"
-    (fileSelected)="onFileSelected($event)"
-    (validationError)="onValidationError($event)"
-  />
+  @if (currentStep() === 1) {
+    <app-product-info-form
+      [name]="productName()"
+      (nameChange)="productName.set($event)"
+      [description]="productDescription()"
+      (descriptionChange)="productDescription.set($event)"
+    />
 
-  <app-prompt-input [value]="prompt()" (valueChange)="prompt.set($event)" />
+    <button
+      type="button"
+      class="self-start rounded-lg bg-blue-600 text-white text-sm font-medium px-5 py-2.5 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+      [disabled]="!canGoToStep2()"
+      (click)="goToStep2()"
+    >
+      Suivant
+    </button>
+  }
 
-  <button
-    type="button"
-    class="self-start rounded-lg bg-blue-600 text-white text-sm font-medium px-5 py-2.5 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
-    [disabled]="!canSubmit()"
-    (click)="onGenerate()"
-  >
-    @if (status() === 'loading') {
-      <span class="h-4 w-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></span>
+  @if (currentStep() === 2) {
+    <div class="flex items-center justify-between rounded-lg bg-gray-50 px-4 py-2.5">
+      <span class="text-sm text-gray-600">
+        Produit : <span class="font-medium text-gray-900">{{ productName() }}</span>
+      </span>
+      <button type="button" class="text-xs text-blue-600 hover:underline" (click)="goToStep1()">
+        Modifier
+      </button>
+    </div>
+
+    <p class="text-sm text-gray-500">
+      Ajoutez une image du produit, décrivez l'image souhaitée, ou faites les deux.
+    </p>
+
+    <app-image-dropzone
+      [previewUrl]="previewUrl()"
+      (fileSelected)="onFileSelected($event)"
+      (validationError)="onValidationError($event)"
+      (cleared)="onImageCleared()"
+    />
+
+    @if (selectedFile()) {
+      <div class="flex flex-col gap-2 rounded-lg border border-gray-200 p-4">
+        <span class="text-sm font-medium text-gray-700">Remplacer la personne sur la photo (optionnel)</span>
+        <p class="text-xs text-gray-500">
+          Importez la photo de la personne à faire apparaître à la place de celle présente sur l'image produit.
+        </p>
+        <app-image-dropzone
+          [previewUrl]="personImagePreviewUrl()"
+          [compact]="true"
+          label="Glissez-déposez une photo de la personne ici, ou cliquez pour en sélectionner une"
+          altText="Aperçu de la personne"
+          (fileSelected)="onPersonImageSelected($event)"
+          (validationError)="onValidationError($event)"
+          (cleared)="onPersonImageCleared()"
+        />
+      </div>
     }
-    {{ status() === 'loading' ? 'Génération en cours...' : 'Générer' }}
-  </button>
 
-  @if (previewUrl() && (status() === 'loading' || status() === 'success')) {
-    <app-result-comparison [beforeUrl]="previewUrl()" [afterUrl]="resultUrl()" />
+    <app-prompt-input
+      [value]="prompt()"
+      (valueChange)="prompt.set($event)"
+      [label]="promptLabel()"
+      [placeholder]="promptPlaceholder()"
+      [hint]="promptHint()"
+    />
+
+    <div class="flex items-center gap-3">
+      <button
+        type="button"
+        class="rounded-lg border border-gray-300 text-gray-700 text-sm font-medium px-5 py-2.5 hover:bg-gray-50"
+        (click)="goToStep1()"
+      >
+        Précédent
+      </button>
+
+      <button
+        type="button"
+        class="rounded-lg bg-blue-600 text-white text-sm font-medium px-5 py-2.5 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
+        [disabled]="!canSubmit()"
+        (click)="onGenerate()"
+      >
+        @if (status() === 'loading') {
+          <span class="h-4 w-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></span>
+        }
+        {{ status() === 'loading' ? 'Génération en cours...' : 'Générer' }}
+      </button>
+    </div>
+
+    @if (status() === 'loading' || status() === 'success') {
+      <app-result-comparison [beforeUrl]="previewUrl()" [afterUrl]="resultUrl()" />
+    }
   }
 </div>

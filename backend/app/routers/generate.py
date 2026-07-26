@@ -1,13 +1,29 @@
+import asyncio
 import logging
 import os
 import tempfile
 import time
+from typing import Awaitable
 
 from fastapi import APIRouter, File, Form, UploadFile
 from fastapi.responses import JSONResponse
 
 from app.config import settings
-from app.fal_service import FalApiError, FalTimeoutError, generate_image
+from app.fal_service import (
+    FalApiError,
+    FalContentPolicyError,
+    FalTimeoutError,
+    download_image,
+    generate_image,
+    generate_image_from_text,
+)
+from app.prompt_service import (
+    PromptGenerationError,
+    build_enhanced_prompt,
+    build_person_replacement_prompt,
+    build_remove_presenter_prompt,
+    build_text_to_image_prompt,
+)
 from app.schemas import ErrorResponse, GenerateResponse
 
 logger = logging.getLogger("reskin.generate")
@@ -22,6 +38,109 @@ def _error(status_code: int, code: str, message: str) -> JSONResponse:
     )
 
 
+class _ImageValidationError(Exception):
+    def __init__(self, response: JSONResponse):
+        self.response = response
+
+
+async def _read_and_validate_image(image: UploadFile) -> bytes:
+    if image.content_type not in settings.allowed_mime_types:
+        raise _ImageValidationError(
+            _error(400, "unsupported_format", "Le fichier doit être au format JPG, PNG ou WEBP.")
+        )
+
+    contents = await image.read()
+    max_bytes = settings.max_upload_mb * 1024 * 1024
+    if len(contents) > max_bytes:
+        raise _ImageValidationError(
+            _error(
+                413,
+                "file_too_large",
+                f"L'image dépasse la taille maximale autorisée ({settings.max_upload_mb} Mo).",
+            )
+        )
+    return contents
+
+
+def _save_temp_image(contents: bytes, filename: str | None) -> str:
+    suffix = os.path.splitext(filename or "")[1] or ".jpg"
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        tmp.write(contents)
+        return tmp.name
+
+
+async def _timed(coro: Awaitable[dict], log_msg: str) -> dict:
+    start = time.monotonic()
+    result = await coro
+    logger.info(log_msg, time.monotonic() - start)
+    return result
+
+
+async def _generate_edit_result(
+    tmp_path: str,
+    person_tmp_path: str | None,
+    product_name: str,
+    product_description: str,
+    prompt_value: str,
+) -> tuple[dict, list[str]]:
+    """Runs the edit pipeline; returns (result, intermediate_tmp_paths_to_clean_up).
+
+    The person swap is split into two single-new-face steps rather than one
+    two-face composite: Gemini 2.5 Flash Image (nano-banana) has a documented
+    "identity drift" problem when a composite mixes more than one distinct
+    face, and Google's own guidance is to minimize distinct face sources per
+    composite and prefer smaller, localized edits. Mixing the original
+    presenter's face with the new one in a single call was the previous
+    (unreliable) approach.
+    """
+    source_path = tmp_path
+    intermediate_paths: list[str] = []
+
+    if person_tmp_path:
+        # Step 1: strip the original presenter and background — zero face
+        # sources, so this is a plain, reliable targeted edit.
+        clean_result = await _timed(
+            generate_image([tmp_path], build_remove_presenter_prompt()),
+            "Fal.ai presenter-removal call succeeded in %.2fs",
+        )
+        clean_path = await asyncio.to_thread(download_image, clean_result["image_url"])
+        intermediate_paths.append(clean_path)
+
+        # Step 2: introduce the new presenter — exactly one new face source,
+        # since the base image now has none.
+        replacement_result = await _timed(
+            generate_image([clean_path, person_tmp_path], build_person_replacement_prompt()),
+            "Fal.ai person-replacement call succeeded in %.2fs",
+        )
+        source_path = await asyncio.to_thread(download_image, replacement_result["image_url"])
+        intermediate_paths.append(source_path)
+
+        if not prompt_value:
+            # The replacement image is already the desired final result — no
+            # transformation was requested, so a further edit pass would only
+            # risk drifting away from it.
+            logger.info("No transformation requested — using person-replacement result as-is")
+            return replacement_result, intermediate_paths
+
+    # Step 3 (or the only step, without a person swap): apply the user's own
+    # prompt as a single-image edit. The reference photo is deliberately not
+    # reintroduced here — doing so would put two distinct faces back in the
+    # same composite (the identity already baked into source_path, plus the
+    # reference photo), which is exactly the drift-prone case step 1/2 avoid.
+    enhanced_prompt = await asyncio.to_thread(
+        build_enhanced_prompt, source_path, product_name, product_description, prompt_value
+    )
+    logger.info(
+        "Enhanced edit prompt built from product info + image%s",
+        " + replaced presenter" if person_tmp_path else "",
+    )
+    result = await _timed(
+        generate_image([source_path], enhanced_prompt),
+        "Fal.ai edit call succeeded in %.2fs",
+    )
+    return result, intermediate_paths
+
+
 @router.get("/health")
 async def health() -> dict:
     return {"status": "ok"}
@@ -29,58 +148,117 @@ async def health() -> dict:
 
 @router.post("/generate", response_model=GenerateResponse)
 async def generate(
-    image: UploadFile = File(...),
-    prompt: str = Form(...),
+    image: UploadFile | None = File(None),
+    person_image: UploadFile | None = File(None),
+    prompt: str = Form(""),
+    product_name: str = Form(...),
+    product_description: str = Form(...),
 ):
-    if image.content_type not in settings.allowed_mime_types:
+    if not product_name or not product_name.strip():
         return _error(
             400,
-            "unsupported_format",
-            "Le fichier doit être au format JPG, PNG ou WEBP.",
+            "empty_product_name",
+            "Merci de renseigner le nom du produit.",
         )
 
-    if not prompt or not prompt.strip():
+    if not product_description or not product_description.strip():
         return _error(
             400,
-            "empty_prompt",
-            "Merci de décrire la transformation souhaitée.",
+            "empty_product_description",
+            "Merci de renseigner la description du produit.",
         )
 
-    contents = await image.read()
-    max_bytes = settings.max_upload_mb * 1024 * 1024
-    if len(contents) > max_bytes:
+    has_image = image is not None and bool(image.filename)
+    has_person_image = person_image is not None and bool(person_image.filename)
+    prompt_value = (prompt or "").strip()
+
+    if not has_image and not prompt_value:
         return _error(
-            413,
-            "file_too_large",
-            f"L'image dépasse la taille maximale autorisée ({settings.max_upload_mb} Mo).",
+            400,
+            "empty_input",
+            "Ajoutez une image, décrivez l'image à générer, ou les deux.",
         )
 
-    suffix = os.path.splitext(image.filename or "")[1] or ".jpg"
-    tmp_path = None
+    if has_person_image and not has_image:
+        return _error(
+            400,
+            "person_image_without_product_image",
+            "Ajoutez d'abord une photo du produit pour pouvoir y remplacer la personne.",
+        )
+
+    contents = b""
+    if has_image:
+        try:
+            contents = await _read_and_validate_image(image)
+        except _ImageValidationError as exc:
+            return exc.response
+
+    person_contents = b""
+    if has_person_image:
+        try:
+            person_contents = await _read_and_validate_image(person_image)
+        except _ImageValidationError as exc:
+            return exc.response
+
+    tmp_paths: list[str] = []
     try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-            tmp.write(contents)
-            tmp_path = tmp.name
+        if has_image:
+            tmp_path = _save_temp_image(contents, image.filename)
+            tmp_paths.append(tmp_path)
 
-        logger.info(
-            "generate request received: filename=%s size=%d prompt_len=%d",
-            image.filename,
-            len(contents),
-            len(prompt),
-        )
+            person_tmp_path = None
+            if has_person_image:
+                person_tmp_path = _save_temp_image(person_contents, person_image.filename)
+                tmp_paths.append(person_tmp_path)
 
-        start = time.monotonic()
-        result = await generate_image(tmp_path, prompt)
-        duration = time.monotonic() - start
-        logger.info("Fal.ai call succeeded in %.2fs", duration)
+            logger.info(
+                "generate request received: mode=edit filename=%s size=%d prompt_len=%d person_ref=%s",
+                image.filename,
+                len(contents),
+                len(prompt_value),
+                has_person_image,
+            )
+
+            result, intermediate_paths = await _generate_edit_result(
+                tmp_path, person_tmp_path, product_name, product_description, prompt_value
+            )
+            tmp_paths.extend(intermediate_paths)
+        else:
+            logger.info(
+                "generate request received: mode=text-to-image prompt_len=%d",
+                len(prompt_value),
+            )
+
+            enhanced_prompt = await asyncio.to_thread(
+                build_text_to_image_prompt, product_name, product_description, prompt_value
+            )
+            logger.info("Enhanced text-to-image prompt built from product info + prompt")
+
+            result = await _timed(
+                generate_image_from_text(enhanced_prompt),
+                "Fal.ai text-to-image call succeeded in %.2fs",
+            )
 
         return GenerateResponse(image_url=result["image_url"], description=result["description"])
 
+    except PromptGenerationError:
+        return _error(
+            502,
+            "prompt_generation_error",
+            "Impossible de générer le prompt à partir des informations produit. Réessayez.",
+        )
     except FalTimeoutError:
         return _error(
             504,
             "fal_timeout",
             "Le service de génération met trop de temps à répondre. Réessayez.",
+        )
+    except FalContentPolicyError:
+        return _error(
+            422,
+            "content_policy_violation",
+            "Cette combinaison de photos a été bloquée par le filtre de contenu du service "
+            "de génération. Essayez avec d'autres photos.",
         )
     except FalApiError:
         return _error(
@@ -96,5 +274,6 @@ async def generate(
             "Une erreur inattendue est survenue. Réessayez.",
         )
     finally:
-        if tmp_path and os.path.exists(tmp_path):
-            os.remove(tmp_path)
+        for path in tmp_paths:
+            if path and os.path.exists(path):
+                os.remove(path)

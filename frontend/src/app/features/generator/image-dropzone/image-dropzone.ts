@@ -10,9 +10,15 @@ const MAX_SIZE_MB = 10;
 })
 export class ImageDropzone {
   readonly previewUrl = input<string | null>(null);
+  readonly label = input(
+    'Glissez-déposez une image produit ici, ou cliquez pour en sélectionner une (optionnel)',
+  );
+  readonly altText = input('Aperçu du produit');
+  readonly compact = input(false);
 
   readonly fileSelected = output<File>();
   readonly validationError = output<string>();
+  readonly cleared = output<void>();
 
   protected readonly isDragOver = signal(false);
 
@@ -41,6 +47,12 @@ export class ImageDropzone {
       this.handleFile(file);
     }
     input.value = '';
+  }
+
+  protected onRemove(event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.cleared.emit();
   }
 
   private handleFile(file: File): void {
