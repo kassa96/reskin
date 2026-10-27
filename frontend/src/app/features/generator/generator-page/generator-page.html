@@ -1,46 +1,61 @@
-<div class="max-w-4xl mx-auto px-4 py-10 flex flex-col gap-6">
-  <header class="flex flex-col gap-1">
-    <h1 class="text-2xl font-semibold text-gray-900">Personnalisation d'image produit</h1>
-    <p class="text-sm text-gray-500">
-      Transformez vos visuels produit génériques (fond, ambiance, mannequin) en quelques secondes.
-    </p>
+<div class="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-8 sm:py-12">
+  <header class="flex items-center gap-4">
+    <div
+      class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-container text-on-primary-container"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-6 w-6">
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M3 16.5V6.75A2.25 2.25 0 0 1 5.25 4.5h13.5A2.25 2.25 0 0 1 21 6.75v9.75m-18 0A2.25 2.25 0 0 0 5.25 18.75h13.5A2.25 2.25 0 0 0 21 16.5m-18 0 5.03-5.03a1.5 1.5 0 0 1 2.122 0L12 14.25l3.03-3.03a1.5 1.5 0 0 1 2.122 0L21 16.5"
+        />
+      </svg>
+    </div>
+    <div class="flex flex-col gap-0.5">
+      <h1 class="text-xl font-semibold tracking-tight text-on-surface sm:text-2xl">
+        Personnalisation d'image produit
+      </h1>
+      <p class="text-sm text-on-surface-variant">
+        Transformez vos visuels produit génériques (fond, ambiance, mannequin) en quelques secondes.
+      </p>
+    </div>
   </header>
 
-  <ol class="flex items-center gap-3 text-sm">
-    <li
-      class="flex items-center gap-2"
-      [class.text-blue-600]="currentStep() === 1"
-      [class.font-semibold]="currentStep() === 1"
-      [class.text-gray-400]="currentStep() !== 1"
-    >
+  <ol class="flex items-center gap-3">
+    <li class="flex items-center gap-2">
       <span
-        class="flex h-6 w-6 items-center justify-center rounded-full border text-xs"
-        [class.border-blue-600]="currentStep() === 1"
-        [class.bg-blue-600]="currentStep() === 1"
-        [class.text-white]="currentStep() === 1"
-        [class.border-gray-300]="currentStep() !== 1"
+        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-medium transition-colors"
+        [class]="currentStep() >= 1 ? 'bg-primary text-on-primary' : 'bg-surface-variant text-on-surface-variant'"
       >
-        1
+        @if (currentStep() > 1) {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="h-4 w-4">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+          </svg>
+        } @else {
+          1
+        }
       </span>
-      Produit
-    </li>
-    <li class="h-px flex-1 bg-gray-200"></li>
-    <li
-      class="flex items-center gap-2"
-      [class.text-blue-600]="currentStep() === 2"
-      [class.font-semibold]="currentStep() === 2"
-      [class.text-gray-400]="currentStep() !== 2"
-    >
       <span
-        class="flex h-6 w-6 items-center justify-center rounded-full border text-xs"
-        [class.border-blue-600]="currentStep() === 2"
-        [class.bg-blue-600]="currentStep() === 2"
-        [class.text-white]="currentStep() === 2"
-        [class.border-gray-300]="currentStep() !== 2"
+        class="text-sm font-medium"
+        [class]="currentStep() === 1 ? 'text-on-surface' : 'text-on-surface-variant'"
+      >
+        Produit
+      </span>
+    </li>
+    <li class="h-0.5 flex-1 rounded-full" [class]="currentStep() > 1 ? 'bg-primary' : 'bg-outline-variant'"></li>
+    <li class="flex items-center gap-2">
+      <span
+        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-medium transition-colors"
+        [class]="currentStep() >= 2 ? 'bg-primary text-on-primary' : 'bg-surface-variant text-on-surface-variant'"
       >
         2
       </span>
-      Génération
+      <span
+        class="text-sm font-medium"
+        [class]="currentStep() === 2 ? 'text-on-surface' : 'text-on-surface-variant'"
+      >
+        Génération
+      </span>
     </li>
   </ol>
 
@@ -49,94 +64,147 @@
   }
 
   @if (currentStep() === 1) {
-    <app-product-info-form
-      [name]="productName()"
-      (nameChange)="productName.set($event)"
-      [description]="productDescription()"
-      (descriptionChange)="productDescription.set($event)"
-    />
+    <section class="flex flex-col gap-6 rounded-3xl bg-surface p-6 shadow-elevation-1 sm:p-8">
+      <app-product-info-form
+        [name]="productName()"
+        (nameChange)="productName.set($event)"
+        [description]="productDescription()"
+        (descriptionChange)="productDescription.set($event)"
+      />
 
-    <button
-      type="button"
-      class="self-start rounded-lg bg-blue-600 text-white text-sm font-medium px-5 py-2.5 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-      [disabled]="!canGoToStep2()"
-      (click)="goToStep2()"
-    >
-      Suivant
-    </button>
+      <button
+        type="button"
+        class="inline-flex items-center gap-2 self-start rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-on-primary shadow-elevation-1 transition-all hover:bg-primary-hover hover:shadow-elevation-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
+        [disabled]="!canGoToStep2()"
+        (click)="goToStep2()"
+      >
+        Suivant
+      </button>
+    </section>
   }
 
   @if (currentStep() === 2) {
-    <div class="flex items-center justify-between rounded-lg bg-gray-50 px-4 py-2.5">
-      <span class="text-sm text-gray-600">
-        Produit : <span class="font-medium text-gray-900">{{ productName() }}</span>
-      </span>
-      <button type="button" class="text-xs text-blue-600 hover:underline" (click)="goToStep1()">
-        Modifier
-      </button>
-    </div>
-
-    <p class="text-sm text-gray-500">
-      Ajoutez une image du produit, décrivez l'image souhaitée, ou faites les deux.
-    </p>
-
-    <app-image-dropzone
-      [previewUrl]="previewUrl()"
-      (fileSelected)="onFileSelected($event)"
-      (validationError)="onValidationError($event)"
-      (cleared)="onImageCleared()"
-    />
-
-    @if (selectedFile()) {
-      <div class="flex flex-col gap-2 rounded-lg border border-gray-200 p-4">
-        <span class="text-sm font-medium text-gray-700">Remplacer la personne sur la photo (optionnel)</span>
-        <p class="text-xs text-gray-500">
-          Importez la photo de la personne à faire apparaître à la place de celle présente sur l'image produit.
-        </p>
-        <app-image-dropzone
-          [previewUrl]="personImagePreviewUrl()"
-          [compact]="true"
-          label="Glissez-déposez une photo de la personne ici, ou cliquez pour en sélectionner une"
-          altText="Aperçu de la personne"
-          (fileSelected)="onPersonImageSelected($event)"
-          (validationError)="onValidationError($event)"
-          (cleared)="onPersonImageCleared()"
-        />
+    <section class="flex flex-col gap-6 rounded-3xl bg-surface p-6 shadow-elevation-1 sm:p-8">
+      <div class="flex items-center justify-between rounded-2xl bg-surface-container-high px-4 py-3">
+        <span class="text-sm text-on-surface-variant">
+          Produit : <span class="font-medium text-on-surface">{{ productName() }}</span>
+        </span>
+        <button
+          type="button"
+          class="rounded-full px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary-container"
+          (click)="goToStep1()"
+        >
+          Modifier
+        </button>
       </div>
-    }
 
-    <app-prompt-input
-      [value]="prompt()"
-      (valueChange)="prompt.set($event)"
-      [label]="promptLabel()"
-      [placeholder]="promptPlaceholder()"
-      [hint]="promptHint()"
-    />
+      <p class="text-sm text-on-surface-variant">
+        Ajoutez une image du produit, décrivez l'image souhaitée, ou faites les deux.
+      </p>
 
-    <div class="flex items-center gap-3">
-      <button
-        type="button"
-        class="rounded-lg border border-gray-300 text-gray-700 text-sm font-medium px-5 py-2.5 hover:bg-gray-50"
-        (click)="goToStep1()"
-      >
-        Précédent
-      </button>
+      <app-image-dropzone
+        [previewUrl]="previewUrl()"
+        (fileSelected)="onFileSelected($event)"
+        (validationError)="onValidationError($event)"
+        (cleared)="onImageCleared()"
+        (zoomed)="openLightbox($event)"
+      />
 
-      <button
-        type="button"
-        class="rounded-lg bg-blue-600 text-white text-sm font-medium px-5 py-2.5 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
-        [disabled]="!canSubmit()"
-        (click)="onGenerate()"
-      >
-        @if (status() === 'loading') {
-          <span class="h-4 w-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></span>
-        }
-        {{ status() === 'loading' ? 'Génération en cours...' : 'Générer' }}
-      </button>
-    </div>
+      @if (selectedFile()) {
+        <div class="flex flex-col gap-2 rounded-2xl border border-outline-variant bg-surface-container p-4">
+          <span class="text-sm font-medium text-on-surface">Remplacer la personne sur la photo (optionnel)</span>
+          <p class="text-xs text-on-surface-variant">
+            Importez la photo de la personne à faire apparaître à la place de celle présente sur l'image produit.
+          </p>
+          <app-image-dropzone
+            [previewUrl]="personImagePreviewUrl()"
+            [compact]="true"
+            label="Glissez-déposez une photo de la personne ici, ou cliquez pour en sélectionner une"
+            altText="Aperçu de la personne"
+            (fileSelected)="onPersonImageSelected($event)"
+            (validationError)="onValidationError($event)"
+            (cleared)="onPersonImageCleared()"
+            (zoomed)="openLightbox($event)"
+          />
 
-    @if (status() === 'loading' || status() === 'success') {
-      <app-result-comparison [beforeUrl]="previewUrl()" [afterUrl]="resultUrl()" />
-    }
+          @if (mannequins().length > 0) {
+            <app-mannequin-picker
+              [mannequins]="mannequins()"
+              [selectedId]="selectedMannequinId()"
+              (selectedIdChange)="onMannequinSelected($event)"
+            />
+          }
+        </div>
+      }
+
+      <app-prompt-input
+        [value]="prompt()"
+        (valueChange)="prompt.set($event)"
+        [label]="promptLabel()"
+        [placeholder]="promptPlaceholder()"
+        [hint]="promptHint()"
+      />
+
+      <app-aspect-ratio-select [value]="aspectRatio()" (valueChange)="aspectRatio.set($event)" />
+
+      <div class="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          class="rounded-full border-2 border-outline px-6 py-2.5 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-variant"
+          (click)="goToStep1()"
+        >
+          Précédent
+        </button>
+
+        <button
+          type="button"
+          class="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-on-primary shadow-elevation-1 transition-all hover:bg-primary-hover hover:shadow-elevation-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
+          [disabled]="!canSubmit()"
+          (click)="onGenerate()"
+        >
+          @if (status() === 'loading') {
+            <span class="h-4 w-4 animate-spin rounded-full border-2 border-on-primary/30 border-t-on-primary"></span>
+          }
+          {{ status() === 'loading' ? 'Génération en cours...' : 'Générer' }}
+        </button>
+      </div>
+
+      @if (status() === 'loading' || status() === 'success') {
+        <app-result-comparison
+          [beforeUrl]="previewUrl()"
+          [personUrl]="personReferenceUrl()"
+          [afterUrl]="resultUrl()"
+          (imageClicked)="openLightbox($event)"
+        />
+      }
+
+      @if (status() === 'success' && resultUrl()) {
+        <div class="flex flex-col gap-4 rounded-2xl border border-outline-variant bg-surface-container p-4 sm:p-6">
+          <app-prompt-input
+            [value]="refinePrompt()"
+            (valueChange)="refinePrompt.set($event)"
+            label="Retoucher le résultat"
+            placeholder="ex: éclaircis légèrement le fond, recadre plus serré"
+            hint="La retouche s'applique sur le dernier résultat généré."
+          />
+
+          <button
+            type="button"
+            class="inline-flex items-center gap-2 self-start rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-on-primary shadow-elevation-1 transition-all hover:bg-primary-hover hover:shadow-elevation-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
+            [disabled]="!canRefine()"
+            (click)="onRefine()"
+          >
+            @if (status() === 'loading') {
+              <span class="h-4 w-4 animate-spin rounded-full border-2 border-on-primary/30 border-t-on-primary"></span>
+            }
+            {{ status() === 'loading' ? 'Retouche en cours...' : 'Retoucher' }}
+          </button>
+        </div>
+      }
+    </section>
+  }
+
+  @if (lightboxUrl()) {
+    <app-image-lightbox [url]="lightboxUrl()!" (closed)="closeLightbox()" />
   }
 </div>

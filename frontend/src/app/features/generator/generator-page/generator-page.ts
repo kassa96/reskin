@@ -1,9 +1,12 @@
-import { HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 
 import { ImageGenerationService } from '../../../core/services/image-generation.service';
-import { ApiErrorResponse } from '../../../core/models/generate.model';
+import { ApiErrorResponse, Mannequin } from '../../../core/models/generate.model';
+import { AspectRatioSelect } from '../aspect-ratio-select/aspect-ratio-select';
 import { ImageDropzone } from '../image-dropzone/image-dropzone';
+import { ImageLightbox } from '../image-lightbox/image-lightbox';
+import { MannequinPicker } from '../mannequin-picker/mannequin-picker';
 import { PromptInput } from '../prompt-input/prompt-input';
 import { ProductInfoForm } from '../product-info-form/product-info-form';
 import { ResultComparison } from '../result-comparison/result-comparison';
@@ -14,11 +17,31 @@ type Step = 1 | 2;
 
 @Component({
   selector: 'app-generator-page',
-  imports: [ImageDropzone, PromptInput, ProductInfoForm, ResultComparison, ErrorToast],
+  imports: [
+    ImageDropzone,
+    PromptInput,
+    ProductInfoForm,
+    AspectRatioSelect,
+    MannequinPicker,
+    ResultComparison,
+    ImageLightbox,
+    ErrorToast,
+  ],
   templateUrl: './generator-page.html',
 })
 export class GeneratorPage {
   private readonly imageGenerationService = inject(ImageGenerationService);
+  private readonly http = inject(HttpClient);
+
+  constructor() {
+    this.imageGenerationService.getMannequins().subscribe({
+      next: (mannequins) => this.mannequins.set(mannequins),
+      error: () => {
+        // Optional default gallery — failing to load it doesn't block the
+        // custom-upload flow, so no user-facing error here.
+      },
+    });
+  }
 
   protected readonly currentStep = signal<Step>(1);
 
@@ -29,11 +52,16 @@ export class GeneratorPage {
   protected readonly previewUrl = signal<string | null>(null);
   protected readonly personImageFile = signal<File | null>(null);
   protected readonly personImagePreviewUrl = signal<string | null>(null);
+  protected readonly mannequins = signal<Mannequin[]>([]);
+  protected readonly selectedMannequinId = signal<string | null>(null);
   protected readonly prompt = signal('');
+  protected readonly aspectRatio = signal('auto');
+  protected readonly refinePrompt = signal('');
 
   protected readonly status = signal<Status>('idle');
   protected readonly resultUrl = signal<string | null>(null);
   protected readonly errorMessage = signal<string | null>(null);
+  protected readonly lightboxUrl = signal<string | null>(null);
 
   protected readonly canGoToStep2 = computed(
     () => this.productName().trim().length > 0 && this.productDescription().trim().length > 0,
@@ -60,6 +88,17 @@ export class GeneratorPage {
     this.selectedFile()
       ? 'Le produit (forme, couleurs, logo) est automatiquement préservé.'
       : "Aucune image fournie : une nouvelle photo du produit est générée à partir de sa description.",
+  );
+
+  protected readonly canRefine = computed(
+    () => !!this.resultUrl() && this.refinePrompt().trim().length > 0 && this.status() !== 'loading',
+  );
+
+  protected readonly personReferenceUrl = computed(
+    () =>
+      this.personImagePreviewUrl() ??
+      this.mannequins().find((m) => m.id === this.selectedMannequinId())?.image_url ??
+      null,
   );
 
   protected goToStep2(): void {
@@ -95,6 +134,7 @@ export class GeneratorPage {
     this.errorMessage.set(null);
     this.status.set('idle');
     this.onPersonImageCleared();
+    this.selectedMannequinId.set(null);
   }
 
   protected onPersonImageSelected(file: File): void {
@@ -104,6 +144,7 @@ export class GeneratorPage {
     }
     this.personImageFile.set(file);
     this.personImagePreviewUrl.set(URL.createObjectURL(file));
+    this.selectedMannequinId.set(null);
   }
 
   protected onPersonImageCleared(): void {
@@ -115,8 +156,23 @@ export class GeneratorPage {
     this.personImagePreviewUrl.set(null);
   }
 
+  protected onMannequinSelected(mannequinId: string | null): void {
+    if (mannequinId) {
+      this.onPersonImageCleared();
+    }
+    this.selectedMannequinId.set(mannequinId);
+  }
+
   protected onValidationError(message: string): void {
     this.errorMessage.set(message);
+  }
+
+  protected openLightbox(url: string): void {
+    this.lightboxUrl.set(url);
+  }
+
+  protected closeLightbox(): void {
+    this.lightboxUrl.set(null);
   }
 
   protected onGenerate(): void {
@@ -133,23 +189,76 @@ export class GeneratorPage {
     this.errorMessage.set(null);
 
     this.imageGenerationService
-      .generate(file, promptValue, productNameValue, productDescriptionValue, personFile)
+      .generate(
+        file,
+        promptValue,
+        productNameValue,
+        productDescriptionValue,
+        personFile,
+        this.aspectRatio(),
+        this.selectedMannequinId(),
+      )
       .subscribe({
         next: (response) => {
           this.resultUrl.set(response.image_url);
           this.status.set('success');
         },
-        error: (err: HttpErrorResponse) => {
-          this.status.set('error');
-          const apiError = err.error as ApiErrorResponse | undefined;
-          this.errorMessage.set(
-            apiError?.message ??
-              (err.status === 0
-                ? 'Impossible de contacter le serveur. Vérifiez votre connexion.'
-                : 'Une erreur est survenue. Réessayez.'),
-          );
-        },
+        error: (err: HttpErrorResponse) => this.handleGenerateError(err),
       });
+  }
+
+  protected onRefine(): void {
+    const currentResult = this.resultUrl();
+    const refineValue = this.refinePrompt().trim();
+    if (!currentResult || !refineValue) {
+      return;
+    }
+
+    this.status.set('loading');
+    this.errorMessage.set(null);
+
+    this.http.get(currentResult, { responseType: 'blob' }).subscribe({
+      next: (blob) => {
+        const file = new File([blob], 'retouche.png', { type: blob.type || 'image/png' });
+        this.imageGenerationService
+          .generate(
+            file,
+            refineValue,
+            this.productName().trim(),
+            this.productDescription().trim(),
+            null,
+            this.aspectRatio(),
+          )
+          .subscribe({
+            next: (response) => {
+              const previous = this.previewUrl();
+              if (previous) {
+                URL.revokeObjectURL(previous);
+              }
+              this.previewUrl.set(currentResult);
+              this.resultUrl.set(response.image_url);
+              this.refinePrompt.set('');
+              this.status.set('success');
+            },
+            error: (err: HttpErrorResponse) => this.handleGenerateError(err),
+          });
+      },
+      error: () => {
+        this.status.set('error');
+        this.errorMessage.set("Impossible de récupérer l'image générée pour la retoucher.");
+      },
+    });
+  }
+
+  private handleGenerateError(err: HttpErrorResponse): void {
+    this.status.set('error');
+    const apiError = err.error as ApiErrorResponse | undefined;
+    this.errorMessage.set(
+      apiError?.message ??
+        (err.status === 0
+          ? 'Impossible de contacter le serveur. Vérifiez votre connexion.'
+          : 'Une erreur est survenue. Réessayez.'),
+    );
   }
 
   protected dismissError(): void {

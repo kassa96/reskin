@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.fal_service import (
+    ALLOWED_ASPECT_RATIOS,
     FalApiError,
     FalContentPolicyError,
     FalTimeoutError,
@@ -17,9 +18,11 @@ from app.fal_service import (
     generate_image,
     generate_image_from_text,
 )
+from app.mannequins import get_mannequin_path
 from app.prompt_service import (
     PromptGenerationError,
     build_enhanced_prompt,
+    build_person_cleanup_prompt,
     build_person_replacement_prompt,
     build_remove_presenter_prompt,
     build_text_to_image_prompt,
@@ -82,34 +85,54 @@ async def _generate_edit_result(
     product_name: str,
     product_description: str,
     prompt_value: str,
+    aspect_ratio: str,
 ) -> tuple[dict, list[str]]:
     """Runs the edit pipeline; returns (result, intermediate_tmp_paths_to_clean_up).
 
-    The person swap is split into two single-new-face steps rather than one
-    two-face composite: Gemini 2.5 Flash Image (nano-banana) has a documented
+    The person swap is split into small, single-purpose steps rather than one
+    combined composite: Gemini 2.5 Flash Image (nano-banana) has a documented
     "identity drift" problem when a composite mixes more than one distinct
     face, and Google's own guidance is to minimize distinct face sources per
     composite and prefer smaller, localized edits. Mixing the original
-    presenter's face with the new one in a single call was the previous
+    presenter's face with the new one in a single call, or compositing against
+    a raw reference photo with an unclear pose or background, was the previous
     (unreliable) approach.
     """
     source_path = tmp_path
     intermediate_paths: list[str] = []
 
     if person_tmp_path:
+        # Step 0: standardize the reference person photo first. An unusual
+        # pose, tight crop or cluttered background in the raw reference gives
+        # step 2 an ambiguous basis to composite from, which can produce an
+        # incoherent combination with the product — cleaning it up first
+        # (full body, neutral pose, plain background) fixes that. Aspect
+        # ratio is fixed to "auto" here since this is only an internal
+        # reference image, not part of the final output.
+        clean_person_result = await _timed(
+            generate_image([person_tmp_path], build_person_cleanup_prompt(), "auto"),
+            "Fal.ai person-reference cleanup call succeeded in %.2fs",
+        )
+        clean_person_path = await asyncio.to_thread(
+            download_image, clean_person_result["image_url"]
+        )
+        intermediate_paths.append(clean_person_path)
+
         # Step 1: strip the original presenter and background — zero face
         # sources, so this is a plain, reliable targeted edit.
         clean_result = await _timed(
-            generate_image([tmp_path], build_remove_presenter_prompt()),
+            generate_image([tmp_path], build_remove_presenter_prompt(), aspect_ratio),
             "Fal.ai presenter-removal call succeeded in %.2fs",
         )
         clean_path = await asyncio.to_thread(download_image, clean_result["image_url"])
         intermediate_paths.append(clean_path)
 
         # Step 2: introduce the new presenter — exactly one new face source,
-        # since the base image now has none.
+        # since the base image now has none — using the cleaned-up reference.
         replacement_result = await _timed(
-            generate_image([clean_path, person_tmp_path], build_person_replacement_prompt()),
+            generate_image(
+                [clean_path, clean_person_path], build_person_replacement_prompt(), aspect_ratio
+            ),
             "Fal.ai person-replacement call succeeded in %.2fs",
         )
         source_path = await asyncio.to_thread(download_image, replacement_result["image_url"])
@@ -135,7 +158,7 @@ async def _generate_edit_result(
         " + replaced presenter" if person_tmp_path else "",
     )
     result = await _timed(
-        generate_image([source_path], enhanced_prompt),
+        generate_image([source_path], enhanced_prompt, aspect_ratio),
         "Fal.ai edit call succeeded in %.2fs",
     )
     return result, intermediate_paths
@@ -153,6 +176,8 @@ async def generate(
     prompt: str = Form(""),
     product_name: str = Form(...),
     product_description: str = Form(...),
+    aspect_ratio: str = Form("auto"),
+    mannequin_id: str = Form(""),
 ):
     if not product_name or not product_name.strip():
         return _error(
@@ -168,9 +193,27 @@ async def generate(
             "Merci de renseigner la description du produit.",
         )
 
+    if aspect_ratio not in ALLOWED_ASPECT_RATIOS:
+        return _error(
+            400,
+            "invalid_aspect_ratio",
+            "Format d'image invalide.",
+        )
+
     has_image = image is not None and bool(image.filename)
-    has_person_image = person_image is not None and bool(person_image.filename)
+    has_uploaded_person_image = person_image is not None and bool(person_image.filename)
+    mannequin_id_value = (mannequin_id or "").strip()
     prompt_value = (prompt or "").strip()
+
+    # An explicitly uploaded person photo takes precedence over a preset
+    # mannequin — the mannequin is only a default fallback.
+    mannequin_path = None
+    if mannequin_id_value and not has_uploaded_person_image:
+        mannequin_path = get_mannequin_path(mannequin_id_value)
+        if mannequin_path is None:
+            return _error(400, "mannequin_not_found", "Le mannequin sélectionné est introuvable.")
+
+    has_person_image = has_uploaded_person_image or mannequin_path is not None
 
     if not has_image and not prompt_value:
         return _error(
@@ -194,7 +237,7 @@ async def generate(
             return exc.response
 
     person_contents = b""
-    if has_person_image:
+    if has_uploaded_person_image:
         try:
             person_contents = await _read_and_validate_image(person_image)
         except _ImageValidationError as exc:
@@ -207,9 +250,13 @@ async def generate(
             tmp_paths.append(tmp_path)
 
             person_tmp_path = None
-            if has_person_image:
+            if has_uploaded_person_image:
                 person_tmp_path = _save_temp_image(person_contents, person_image.filename)
                 tmp_paths.append(person_tmp_path)
+            elif mannequin_path is not None:
+                # Not added to tmp_paths: this is a persistent bundled asset,
+                # not a per-request temp file — it must not be deleted.
+                person_tmp_path = str(mannequin_path)
 
             logger.info(
                 "generate request received: mode=edit filename=%s size=%d prompt_len=%d person_ref=%s",
@@ -220,7 +267,12 @@ async def generate(
             )
 
             result, intermediate_paths = await _generate_edit_result(
-                tmp_path, person_tmp_path, product_name, product_description, prompt_value
+                tmp_path,
+                person_tmp_path,
+                product_name,
+                product_description,
+                prompt_value,
+                aspect_ratio,
             )
             tmp_paths.extend(intermediate_paths)
         else:
@@ -235,7 +287,7 @@ async def generate(
             logger.info("Enhanced text-to-image prompt built from product info + prompt")
 
             result = await _timed(
-                generate_image_from_text(enhanced_prompt),
+                generate_image_from_text(enhanced_prompt, aspect_ratio),
                 "Fal.ai text-to-image call succeeded in %.2fs",
             )
 

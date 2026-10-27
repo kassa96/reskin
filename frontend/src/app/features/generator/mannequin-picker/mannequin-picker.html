@@ -1,0 +1,28 @@
+<div class="flex flex-col gap-2">
+  <span class="text-sm font-medium text-on-surface">Ou choisissez un mannequin par défaut</span>
+  <div class="grid max-h-56 grid-cols-4 gap-2 overflow-y-auto pr-1 sm:grid-cols-6">
+    @for (mannequin of mannequins(); track mannequin.id) {
+      <button
+        type="button"
+        class="group relative aspect-square overflow-hidden rounded-xl border-2 transition-colors"
+        [class]="
+          selectedId() === mannequin.id
+            ? 'border-primary'
+            : 'border-transparent hover:border-outline-variant'
+        "
+        [title]="mannequin.label"
+        (click)="toggle(mannequin.id)"
+      >
+        <img [src]="mannequin.image_url" [alt]="mannequin.label" class="h-full w-full object-cover" />
+
+        @if (selectedId() === mannequin.id) {
+          <span class="absolute inset-0 flex items-center justify-center bg-primary/40">
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" class="h-6 w-6">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+            </svg>
+          </span>
+        }
+      </button>
+    }
+  </div>
+</div>

@@ -24,6 +24,21 @@ class FalTimeoutError(Exception):
     """Fal.ai call exceeded the configured timeout."""
 
 
+ALLOWED_ASPECT_RATIOS = {
+    "auto",
+    "21:9",
+    "16:9",
+    "3:2",
+    "4:3",
+    "5:4",
+    "1:1",
+    "4:5",
+    "3:4",
+    "2:3",
+    "9:16",
+}
+
+
 def _raise_fal_error(exc: fal_client.FalClientError) -> None:
     if isinstance(exc, fal_client.FalClientHTTPError) and "content_policy_violation" in str(exc):
         raise FalContentPolicyError(str(exc)) from exc
@@ -39,16 +54,23 @@ def download_image(url: str) -> str:
         return tmp.name
 
 
+_HAND_ANATOMY_HINT = (
+    "If a person appears in the photo, render their hands and fingers with correct, "
+    "natural anatomy: exactly five fingers per hand, no extra, missing, fused or "
+    "malformed fingers."
+)
+
+
 def build_prompt(user_prompt: str) -> str:
     return (
         f"{user_prompt.strip()}. "
         "Keep the product itself (shape, colors, logo, proportions) perfectly "
         "unchanged; only modify the background, setting, lighting or "
-        "model/mannequin as described."
+        f"model/mannequin as described. {_HAND_ANATOMY_HINT}"
     )
 
 
-async def generate_image(image_paths: list[str], prompt: str) -> dict:
+async def generate_image(image_paths: list[str], prompt: str, aspect_ratio: str = "auto") -> dict:
     enhanced_prompt = build_prompt(prompt)
     print("-----")
     print(enhanced_prompt)
@@ -68,6 +90,7 @@ async def generate_image(image_paths: list[str], prompt: str) -> dict:
                     "image_urls": image_urls,
                     "num_images": 1,
                     "output_format": "png",
+                    "aspect_ratio": aspect_ratio,
                 },
                 with_logs=True,
             ),
@@ -91,15 +114,17 @@ async def generate_image(image_paths: list[str], prompt: str) -> dict:
     }
 
 
-async def generate_image_from_text(prompt: str) -> dict:
+async def generate_image_from_text(prompt: str, aspect_ratio: str = "auto") -> dict:
+    enhanced_prompt = f"{prompt.strip()}. {_HAND_ANATOMY_HINT}"
     try:
         result = await asyncio.wait_for(
             _client.subscribe(
                 settings.fal_text_to_image_model,
                 arguments={
-                    "prompt": prompt,
+                    "prompt": enhanced_prompt,
                     "num_images": 1,
                     "output_format": "png",
+                    "aspect_ratio": aspect_ratio,
                 },
                 with_logs=True,
             ),

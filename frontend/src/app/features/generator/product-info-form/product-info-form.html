@@ -1,21 +1,23 @@
-<div class="grid gap-4 sm:grid-cols-2">
-  <div class="flex flex-col gap-2">
-    <label for="product-name" class="text-sm font-medium text-gray-700">Nom du produit</label>
+<div class="grid gap-4 sm:grid-cols-2 sm:gap-6">
+  <div class="flex flex-col gap-1.5">
+    <label for="product-name" class="text-sm font-medium text-on-surface-variant">Nom du produit</label>
     <input
       id="product-name"
       type="text"
-      class="w-full rounded-lg border border-gray-300 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+      class="w-full rounded-xl border-2 border-outline-variant bg-surface px-4 py-3 text-sm text-on-surface outline-none transition-colors placeholder:text-on-surface-variant/60 focus:border-primary"
       placeholder="ex: Sac à main en cuir tressé"
       [(ngModel)]="name"
     />
   </div>
 
-  <div class="flex flex-col gap-2">
-    <label for="product-description" class="text-sm font-medium text-gray-700">Description du produit</label>
+  <div class="flex flex-col gap-1.5">
+    <label for="product-description" class="text-sm font-medium text-on-surface-variant">
+      Description du produit
+    </label>
     <input
       id="product-description"
       type="text"
-      class="w-full rounded-lg border border-gray-300 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+      class="w-full rounded-xl border-2 border-outline-variant bg-surface px-4 py-3 text-sm text-on-surface outline-none transition-colors placeholder:text-on-surface-variant/60 focus:border-primary"
       placeholder="ex: Sac bandoulière unisexe, cuir marron, fermeture zip"
       [(ngModel)]="description"
     />

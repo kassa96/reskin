@@ -1,9 +1,9 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
-import { GenerateResponse } from '../models/generate.model';
+import { GenerateResponse, Mannequin } from '../models/generate.model';
 
 @Injectable({ providedIn: 'root' })
 export class ImageGenerationService {
@@ -16,6 +16,8 @@ export class ImageGenerationService {
     productName: string,
     productDescription: string,
     personImage: File | null = null,
+    aspectRatio = 'auto',
+    mannequinId: string | null = null,
   ): Observable<GenerateResponse> {
     const formData = new FormData();
     if (image) {
@@ -24,9 +26,23 @@ export class ImageGenerationService {
     if (personImage) {
       formData.append('person_image', personImage);
     }
+    if (mannequinId) {
+      formData.append('mannequin_id', mannequinId);
+    }
     formData.append('prompt', prompt);
     formData.append('product_name', productName);
     formData.append('product_description', productDescription);
+    formData.append('aspect_ratio', aspectRatio);
     return this.http.post<GenerateResponse>(`${this.baseUrl}/api/generate`, formData);
+  }
+
+  getMannequins(): Observable<Mannequin[]> {
+    return this.http
+      .get<Mannequin[]>(`${this.baseUrl}/api/mannequins`)
+      .pipe(
+        map((mannequins) =>
+          mannequins.map((m) => ({ ...m, image_url: `${this.baseUrl}${m.image_url}` })),
+        ),
+      );
   }
 }

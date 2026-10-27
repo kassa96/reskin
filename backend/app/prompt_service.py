@@ -29,6 +29,19 @@ _EDIT_SYSTEM_PROMPT = (
     "Output only the prompt text — no preamble, no quotes, no explanation."
 )
 
+_CLEAN_PERSON_REFERENCE_PROMPT = (
+    "This photo shows a person, possibly in an unusual pose, tightly cropped, poorly lit, "
+    "or with a cluttered background. Produce a clean, high-quality, full-body studio photo "
+    "of this exact same person: standing in a natural, straight, relaxed pose, facing "
+    "forward, fully visible from head to toe, not cropped at any edge, on a plain, clean "
+    "white studio background (no props, no scenery, only a soft natural shadow beneath the "
+    "subject). Reproduce the person faithfully: same face, hair, skin tone, build, outfit "
+    "and clothing exactly as in the original photo — do not invent a different look. If the "
+    "original photo is cropped above the feet and their footwear is not visible, complete "
+    "the lower body with simple, plain shoes that match the outfit — never leave the "
+    "person barefoot."
+)
+
 _REMOVE_PRESENTER_PROMPT = (
     "This photo shows a product, possibly presented by a person or mannequin, on some "
     "background. Produce a clean product-only photo on a plain, clean white studio "
@@ -40,10 +53,17 @@ _REMOVE_PRESENTER_PROMPT = (
 
 _PERSON_REPLACEMENT_PROMPT = (
     "Image 1 shows a product alone on a plain white studio background. Image 2 shows a "
-    "person. Compose a new e-commerce studio product photo, keeping the same plain white "
-    "background and keeping the product from Image 1 exactly as it is (shape, colors, "
-    "logo, material, proportions): show the person from Image 2 presenting or wearing the "
-    "product, in a natural pose suited to the product."
+    "person, shown in full. Compose a new e-commerce studio product photo, on a plain "
+    "white background by default, keeping the product from Image 1 exactly as it is "
+    "(shape, colors, logo, material, proportions): show the person from Image 2 "
+    "presenting or wearing the product, in a natural pose suited to the product. "
+    "Reproduce the person from Image 2 faithfully and completely: same face, hair, skin "
+    "tone, build, outfit and clothing exactly as shown in Image 2 — do not invent a "
+    "different look or change what they are wearing beyond what the product requires. "
+    "Frame the photo so the person is fully visible from head to toe, not cropped at the "
+    "top, bottom or sides. If their footwear is not clearly visible in Image 2, complete "
+    "the lower body with simple, plain shoes that match the outfit — never leave the "
+    "person barefoot."
 )
 
 _TEXT_TO_IMAGE_SYSTEM_PROMPT = (
@@ -71,6 +91,20 @@ def _encode_image(image_path: str) -> tuple[str, str]:
 def _extract_text(response: anthropic.types.Message) -> str:
     text = next((block.text for block in response.content if block.type == "text"), "")
     return text.strip()
+
+
+def build_person_cleanup_prompt() -> str:
+    """Fixed prompt standardizing the reference person photo before compositing.
+
+    An unusual pose, tight crop or cluttered background in the raw reference
+    photo gives the person-replacement step (build_person_replacement_prompt)
+    an ambiguous basis to work from, which can produce an incoherent
+    combination with the product. Standardizing it first (full body, neutral
+    pose, plain background) gives that step a much clearer single-face
+    reference — same "smaller, localized edit" rationale as the other fixed
+    prompts here.
+    """
+    return _CLEAN_PERSON_REFERENCE_PROMPT
 
 
 def build_remove_presenter_prompt() -> str:

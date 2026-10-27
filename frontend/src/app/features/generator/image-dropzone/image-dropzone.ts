@@ -19,6 +19,7 @@ export class ImageDropzone {
   readonly fileSelected = output<File>();
   readonly validationError = output<string>();
   readonly cleared = output<void>();
+  readonly zoomed = output<string>();
 
   protected readonly isDragOver = signal(false);
 
@@ -53,6 +54,15 @@ export class ImageDropzone {
     event.preventDefault();
     event.stopPropagation();
     this.cleared.emit();
+  }
+
+  protected onZoom(event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    const url = this.previewUrl();
+    if (url) {
+      this.zoomed.emit(url);
+    }
   }
 
   private handleFile(file: File): void {
