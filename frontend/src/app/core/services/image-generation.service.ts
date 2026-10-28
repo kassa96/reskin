@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
-import { GenerateResponse, Mannequin } from '../models/generate.model';
+import { AppearanceSource, GenerateResponse, Mannequin } from '../models/generate.model';
 
 @Injectable({ providedIn: 'root' })
 export class ImageGenerationService {
@@ -18,6 +18,8 @@ export class ImageGenerationService {
     personImage: File | null = null,
     aspectRatio = 'auto',
     mannequinId: string | null = null,
+    keepBackground = false,
+    appearanceSource: AppearanceSource = 'reference',
   ): Observable<GenerateResponse> {
     const formData = new FormData();
     if (image) {
@@ -33,6 +35,8 @@ export class ImageGenerationService {
     formData.append('product_name', productName);
     formData.append('product_description', productDescription);
     formData.append('aspect_ratio', aspectRatio);
+    formData.append('keep_background', String(keepBackground));
+    formData.append('appearance_source', appearanceSource);
     return this.http.post<GenerateResponse>(`${this.baseUrl}/api/generate`, formData);
   }
 

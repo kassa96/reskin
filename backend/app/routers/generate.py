@@ -3,17 +3,19 @@ import logging
 import os
 import tempfile
 import time
+from io import BytesIO
 from typing import Awaitable
 
 from fastapi import APIRouter, File, Form, UploadFile
 from fastapi.responses import JSONResponse
+from PIL import Image
 
 from app.config import settings
-from app.fal_service import (
+from app.meta_image_service import (
     ALLOWED_ASPECT_RATIOS,
-    FalApiError,
-    FalContentPolicyError,
-    FalTimeoutError,
+    MetaImageApiError,
+    MetaImageContentPolicyError,
+    MetaImageTimeoutError,
     download_image,
     generate_image,
     generate_image_from_text,
@@ -22,9 +24,8 @@ from app.mannequins import get_mannequin_path
 from app.prompt_service import (
     PromptGenerationError,
     build_enhanced_prompt,
+    build_identity_swap_prompt,
     build_person_cleanup_prompt,
-    build_person_replacement_prompt,
-    build_remove_presenter_prompt,
     build_text_to_image_prompt,
 )
 from app.schemas import ErrorResponse, GenerateResponse
@@ -46,6 +47,34 @@ class _ImageValidationError(Exception):
         self.response = response
 
 
+_MIME_BY_PIL_FORMAT = {"JPEG": "image/jpeg", "PNG": "image/png", "WEBP": "image/webp"}
+
+
+def _detect_image_mime(contents: bytes) -> str:
+    """Return the true MIME type after fully decoding the image.
+
+    Sniffs the actual bytes (not the extension) and rejects corrupt,
+    truncated or undecodable files with a clear 400 instead of a 502 from
+    the provider.
+    """
+    try:
+        with Image.open(BytesIO(contents)) as img:
+            img.load()
+            mime = _MIME_BY_PIL_FORMAT.get((img.format or "").upper())
+    except Exception:
+        mime = None
+    if mime is None or mime not in settings.allowed_mime_types:
+        raise _ImageValidationError(
+            _error(
+                400,
+                "unreadable_image",
+                "L'image semble corrompue, tronquée ou illisible. "
+                "Envoyez un fichier JPG, PNG ou WEBP valide.",
+            )
+        )
+    return mime
+
+
 async def _read_and_validate_image(image: UploadFile) -> bytes:
     if image.content_type not in settings.allowed_mime_types:
         raise _ImageValidationError(
@@ -62,6 +91,7 @@ async def _read_and_validate_image(image: UploadFile) -> bytes:
                 f"L'image dépasse la taille maximale autorisée ({settings.max_upload_mb} Mo).",
             )
         )
+    _detect_image_mime(contents)
     return contents
 
 
@@ -86,72 +116,73 @@ async def _generate_edit_result(
     product_description: str,
     prompt_value: str,
     aspect_ratio: str,
+    keep_background: bool = False,
+    appearance_source: str = "reference",
 ) -> tuple[dict, list[str]]:
     """Runs the edit pipeline; returns (result, intermediate_tmp_paths_to_clean_up).
 
-    The person swap is split into small, single-purpose steps rather than one
-    combined composite: Gemini 2.5 Flash Image (nano-banana) has a documented
-    "identity drift" problem when a composite mixes more than one distinct
-    face, and Google's own guidance is to minimize distinct face sources per
-    composite and prefer smaller, localized edits. Mixing the original
-    presenter's face with the new one in a single call, or compositing against
-    a raw reference photo with an unclear pose or background, was the previous
-    (unreliable) approach.
+    The person swap ("reference" appearance) is a single transfer pass
+    directly on the ORIGINAL photo: framing, crop, pose, action, background
+    and lighting are preserved by construction — only the person changes,
+    adopting the reference's appearance (face, hair, skin tone, outfit).
+    One pass means no recomposition step can reinvent the layout, and fewer
+    generative passes means less drift overall. With the "original" appearance
+    the swap is skipped entirely and the original presenter is kept.
     """
     source_path = tmp_path
     intermediate_paths: list[str] = []
 
-    if person_tmp_path:
+    if person_tmp_path and appearance_source == "original":
+        logger.info("Appearance source is the original person — skipping the swap")
+
+    if person_tmp_path and appearance_source == "reference":
         # Step 0: standardize the reference person photo first. An unusual
         # pose, tight crop or cluttered background in the raw reference gives
-        # step 2 an ambiguous basis to composite from, which can produce an
-        # incoherent combination with the product — cleaning it up first
-        # (full body, neutral pose, plain background) fixes that. Aspect
-        # ratio is fixed to "auto" here since this is only an internal
-        # reference image, not part of the final output.
+        # the swap an ambiguous identity source — cleaning it up first (full
+        # body, neutral pose, plain background) fixes that. Aspect ratio is
+        # fixed to "auto" here since this is only an internal reference image,
+        # not part of the final output.
         clean_person_result = await _timed(
             generate_image([person_tmp_path], build_person_cleanup_prompt(), "auto"),
-            "Fal.ai person-reference cleanup call succeeded in %.2fs",
+            "Muse Image person-reference cleanup call succeeded in %.2fs",
         )
         clean_person_path = await asyncio.to_thread(
             download_image, clean_person_result["image_url"]
         )
         intermediate_paths.append(clean_person_path)
 
-        # Step 1: strip the original presenter and background — zero face
-        # sources, so this is a plain, reliable targeted edit.
-        clean_result = await _timed(
-            generate_image([tmp_path], build_remove_presenter_prompt(), aspect_ratio),
-            "Fal.ai presenter-removal call succeeded in %.2fs",
-        )
-        clean_path = await asyncio.to_thread(download_image, clean_result["image_url"])
-        intermediate_paths.append(clean_path)
-
-        # Step 2: introduce the new presenter — exactly one new face source,
-        # since the base image now has none — using the cleaned-up reference.
-        replacement_result = await _timed(
+        # Step 1: swap the identity directly on the original photo. Everything
+        # stays pixel-faithful by construction (same base image, aspect "auto"
+        # so no reframing is requested); only face/hair/skin become Image 2's.
+        # Clothing, pose, background and product are explicitly kept.
+        swap_result = await _timed(
             generate_image(
-                [clean_path, clean_person_path], build_person_replacement_prompt(), aspect_ratio
+                [tmp_path, clean_person_path],
+                build_identity_swap_prompt(),
+                "auto",
             ),
-            "Fal.ai person-replacement call succeeded in %.2fs",
+            "Muse Image identity-swap call succeeded in %.2fs",
         )
-        source_path = await asyncio.to_thread(download_image, replacement_result["image_url"])
+        source_path = await asyncio.to_thread(download_image, swap_result["image_url"])
         intermediate_paths.append(source_path)
 
         if not prompt_value:
-            # The replacement image is already the desired final result — no
+            # The swapped image is already the desired final result — no
             # transformation was requested, so a further edit pass would only
             # risk drifting away from it.
-            logger.info("No transformation requested — using person-replacement result as-is")
-            return replacement_result, intermediate_paths
+            logger.info("No transformation requested — using identity-swap result as-is")
+            return swap_result, intermediate_paths
 
-    # Step 3 (or the only step, without a person swap): apply the user's own
+    # Step 2 (or the only step, without a person swap): apply the user's own
     # prompt as a single-image edit. The reference photo is deliberately not
-    # reintroduced here — doing so would put two distinct faces back in the
-    # same composite (the identity already baked into source_path, plus the
-    # reference photo), which is exactly the drift-prone case step 1/2 avoid.
+    # reintroduced here — the identity is already baked into source_path.
     enhanced_prompt = await asyncio.to_thread(
-        build_enhanced_prompt, source_path, product_name, product_description, prompt_value
+        build_enhanced_prompt,
+        source_path,
+        product_name,
+        product_description,
+        prompt_value,
+        keep_background,
     )
     logger.info(
         "Enhanced edit prompt built from product info + image%s",
@@ -159,7 +190,7 @@ async def _generate_edit_result(
     )
     result = await _timed(
         generate_image([source_path], enhanced_prompt, aspect_ratio),
-        "Fal.ai edit call succeeded in %.2fs",
+        "Muse Image edit call succeeded in %.2fs",
     )
     return result, intermediate_paths
 
@@ -178,6 +209,8 @@ async def generate(
     product_description: str = Form(...),
     aspect_ratio: str = Form("auto"),
     mannequin_id: str = Form(""),
+    keep_background: bool = Form(False),
+    appearance_source: str = Form("reference"),
 ):
     if not product_name or not product_name.strip():
         return _error(
@@ -198,6 +231,13 @@ async def generate(
             400,
             "invalid_aspect_ratio",
             "Format d'image invalide.",
+        )
+
+    if appearance_source not in ("reference", "original"):
+        return _error(
+            400,
+            "invalid_appearance_source",
+            "Choix d'apparence invalide.",
         )
 
     has_image = image is not None and bool(image.filename)
@@ -227,6 +267,14 @@ async def generate(
             400,
             "person_image_without_product_image",
             "Ajoutez d'abord une photo du produit pour pouvoir y remplacer la personne.",
+        )
+
+    if has_person_image and appearance_source == "original" and not prompt_value:
+        return _error(
+            400,
+            "nothing_to_do",
+            "Rien à transformer : décrivez la retouche souhaitée ou choisissez "
+            "la nouvelle personne pour l'apparence.",
         )
 
     contents = b""
@@ -273,6 +321,8 @@ async def generate(
                 product_description,
                 prompt_value,
                 aspect_ratio,
+                keep_background,
+                appearance_source,
             )
             tmp_paths.extend(intermediate_paths)
         else:
@@ -288,34 +338,35 @@ async def generate(
 
             result = await _timed(
                 generate_image_from_text(enhanced_prompt, aspect_ratio),
-                "Fal.ai text-to-image call succeeded in %.2fs",
+                "Muse Image text-to-image call succeeded in %.2fs",
             )
 
         return GenerateResponse(image_url=result["image_url"], description=result["description"])
 
     except PromptGenerationError:
+        logger.warning("Prompt generation failed — returning 502", exc_info=True)
         return _error(
             502,
             "prompt_generation_error",
             "Impossible de générer le prompt à partir des informations produit. Réessayez.",
         )
-    except FalTimeoutError:
+    except MetaImageTimeoutError:
         return _error(
             504,
-            "fal_timeout",
+            "meta_timeout",
             "Le service de génération met trop de temps à répondre. Réessayez.",
         )
-    except FalContentPolicyError:
+    except MetaImageContentPolicyError:
         return _error(
             422,
             "content_policy_violation",
             "Cette combinaison de photos a été bloquée par le filtre de contenu du service "
             "de génération. Essayez avec d'autres photos.",
         )
-    except FalApiError:
+    except MetaImageApiError:
         return _error(
             502,
-            "fal_api_error",
+            "meta_api_error",
             "Le service de génération d'image a rencontré une erreur. Réessayez.",
         )
     except Exception:

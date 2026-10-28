@@ -15,8 +15,8 @@ try:
     from app.config import settings
 except ValidationError:
     logger.error(
-        "FAL_KEY or ANTHROPIC_API_KEY is not set — create backend/.env from "
-        "backend/.env.example and set your Fal.ai and Anthropic API keys."
+        "META_API_KEY is not set — create backend/.env from "
+        "backend/.env.example and set your Meta Model API key."
     )
     raise
 

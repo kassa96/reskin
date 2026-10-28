@@ -2,7 +2,8 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 
 import { ImageGenerationService } from '../../../core/services/image-generation.service';
-import { ApiErrorResponse, Mannequin } from '../../../core/models/generate.model';
+import { AppearanceSource, ApiErrorResponse, Mannequin } from '../../../core/models/generate.model';
+import { AppearanceSelect } from '../appearance-select/appearance-select';
 import { AspectRatioSelect } from '../aspect-ratio-select/aspect-ratio-select';
 import { ImageDropzone } from '../image-dropzone/image-dropzone';
 import { ImageLightbox } from '../image-lightbox/image-lightbox';
@@ -21,6 +22,7 @@ type Step = 1 | 2;
     ImageDropzone,
     PromptInput,
     ProductInfoForm,
+    AppearanceSelect,
     AspectRatioSelect,
     MannequinPicker,
     ResultComparison,
@@ -56,6 +58,8 @@ export class GeneratorPage {
   protected readonly selectedMannequinId = signal<string | null>(null);
   protected readonly prompt = signal('');
   protected readonly aspectRatio = signal('auto');
+  protected readonly appearanceSource = signal<AppearanceSource>('reference');
+  protected readonly keepBackground = signal(false);
   protected readonly refinePrompt = signal('');
 
   protected readonly status = signal<Status>('idle');
@@ -99,6 +103,14 @@ export class GeneratorPage {
       this.personImagePreviewUrl() ??
       this.mannequins().find((m) => m.id === this.selectedMannequinId())?.image_url ??
       null,
+  );
+
+  protected readonly nothingToDo = computed(
+    () =>
+      !!this.selectedFile() &&
+      !!this.personReferenceUrl() &&
+      this.appearanceSource() === 'original' &&
+      this.prompt().trim().length === 0,
   );
 
   protected goToStep2(): void {
@@ -167,6 +179,11 @@ export class GeneratorPage {
     this.errorMessage.set(message);
   }
 
+  protected onKeepBackgroundChange(event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    this.keepBackground.set(input?.checked ?? false);
+  }
+
   protected openLightbox(url: string): void {
     this.lightboxUrl.set(url);
   }
@@ -197,6 +214,8 @@ export class GeneratorPage {
         personFile,
         this.aspectRatio(),
         this.selectedMannequinId(),
+        this.keepBackground(),
+        this.appearanceSource(),
       )
       .subscribe({
         next: (response) => {
@@ -228,6 +247,9 @@ export class GeneratorPage {
             this.productDescription().trim(),
             null,
             this.aspectRatio(),
+            null,
+            this.keepBackground(),
+            this.appearanceSource(),
           )
           .subscribe({
             next: (response) => {

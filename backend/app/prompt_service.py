@@ -1,14 +1,19 @@
 import base64
 import logging
 import os
+from io import BytesIO
 
-import anthropic
+from openai import OpenAI, OpenAIError
+from PIL import Image
 
 from app.config import settings
 
 logger = logging.getLogger("reskin.prompt_service")
 
-_client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+# Muse Wonder est le modèle de langage Meta accessible via la Meta Model API
+# (https://api.meta.ai/v1, compatible OpenAI) : analyse multimodale texte +
+# image et génération de texte pour l'enrichissement des prompts.
+_client = OpenAI(base_url=settings.meta_base_url, api_key=settings.meta_api_key)
 
 _MEDIA_TYPES = {
     ".jpg": "image/jpeg",
@@ -16,6 +21,8 @@ _MEDIA_TYPES = {
     ".png": "image/png",
     ".webp": "image/webp",
 }
+
+_MEDIA_TYPES_BY_PIL_FORMAT = {"JPEG": "image/jpeg", "PNG": "image/png", "WEBP": "image/webp"}
 
 _EDIT_SYSTEM_PROMPT = (
     "You write image-editing prompts for an e-commerce product photo generator. "
@@ -26,7 +33,20 @@ _EDIT_SYSTEM_PROMPT = (
     "description. Write a single, concrete, visually descriptive prompt for an "
     "image-editing model that clearly states what to change, while explicitly instructing "
     "that the product itself (shape, colors, logo, proportions) must stay unchanged. "
+    "Also keep the photo's composition and framing unchanged, and any person exactly "
+    "as posed and engaged in the same action, unless the requested transformation "
+    "explicitly requires otherwise. "
+    "If the product appears small in the frame, first enumerate its visible "
+    "micro-details (markings, text, logos, positions of hands or needles, materials, "
+    "textures) and incorporate them as binding preservation constraints in the prompt, "
+    "so the model reproduces them exactly instead of redrawing or simplifying them. "
     "Output only the prompt text — no preamble, no quotes, no explanation."
+)
+
+_FALLBACK_EDIT_PROMPT = (
+    "Enhance this product photo for professional e-commerce: clean, bright, "
+    "neutral studio presentation with soft natural lighting. Keep the product "
+    "itself (shape, colors, logo, proportions) perfectly unchanged."
 )
 
 _CLEAN_PERSON_REFERENCE_PROMPT = (
@@ -42,28 +62,25 @@ _CLEAN_PERSON_REFERENCE_PROMPT = (
     "person barefoot."
 )
 
-_REMOVE_PRESENTER_PROMPT = (
-    "This photo shows a product, possibly presented by a person or mannequin, on some "
-    "background. Produce a clean product-only photo on a plain, clean white studio "
-    "background (no props, no scenery, only a soft natural shadow beneath the subject): "
-    "remove any person, mannequin and the original background entirely. Keep the product "
-    "itself exactly as it is (shape, colors, logo, material, proportions) — only the "
-    "presenter and background are removed."
-)
-
-_PERSON_REPLACEMENT_PROMPT = (
-    "Image 1 shows a product alone on a plain white studio background. Image 2 shows a "
-    "person, shown in full. Compose a new e-commerce studio product photo, on a plain "
-    "white background by default, keeping the product from Image 1 exactly as it is "
-    "(shape, colors, logo, material, proportions): show the person from Image 2 "
-    "presenting or wearing the product, in a natural pose suited to the product. "
-    "Reproduce the person from Image 2 faithfully and completely: same face, hair, skin "
-    "tone, build, outfit and clothing exactly as shown in Image 2 — do not invent a "
-    "different look or change what they are wearing beyond what the product requires. "
-    "Frame the photo so the person is fully visible from head to toe, not cropped at the "
-    "top, bottom or sides. If their footwear is not clearly visible in Image 2, complete "
-    "the lower body with simple, plain shoes that match the outfit — never leave the "
-    "person barefoot."
+_IDENTITY_SWAP_PROMPT = (
+    "Image 1 shows the original photo: a product presented by a person in a scene. "
+    "Image 2 shows a different person (reference photo, neutral pose). "
+    "Produce a photo IDENTICAL to Image 1 in every respect — same framing and crop, "
+    "same camera angle, same composition, same pose and position of the person, same "
+    "background, same lighting — with ONE single change: the person becomes the "
+    "person from Image 2. "
+    "Transfer from Image 2 the full appearance: face, hair, skin tone AND outfit and "
+    "clothing, adapted to the exact pose, head position, angle and size in Image 1. "
+    "Exception with absolute priority: the product itself stays exactly as in Image 1 "
+    "in all cases — if the product is a garment worn by the person, keep that garment "
+    "exactly as worn and transfer only face, hair and skin tone. "
+    "Keep everything else from Image 1: the same body and posture, the same hand "
+    "positions, the same action, the same background. "
+    "Do not blend facial features from both images: the result must show ONE coherent "
+    "person — Image 2's appearance performing Image 1's exact pose in Image 1's exact "
+    "scene. "
+    "Render in high resolution with sharp fine details, clean edges and a professional "
+    "studio finish."
 )
 
 _TEXT_TO_IMAGE_SYSTEM_PROMPT = (
@@ -76,62 +93,102 @@ _TEXT_TO_IMAGE_SYSTEM_PROMPT = (
     "photography. Output only the prompt text — no preamble, no quotes, no explanation."
 )
 
-
 class PromptGenerationError(Exception):
     """The LLM call to build an enhanced image-generation prompt failed."""
 
 
 def _encode_image(image_path: str) -> tuple[str, str]:
-    media_type = _MEDIA_TYPES.get(os.path.splitext(image_path)[1].lower(), "image/jpeg")
     with open(image_path, "rb") as f:
-        image_b64 = base64.standard_b64encode(f.read()).decode("utf-8")
-    return media_type, image_b64
+        raw = f.read()
+    # Sniff the true format: uploads are sometimes mislabeled (e.g. a WEBP
+    # served as .jpg) and the data-URL MIME must match the actual bytes.
+    try:
+        with Image.open(BytesIO(raw)) as img:
+            img.load()
+            media_type = _MEDIA_TYPES_BY_PIL_FORMAT.get((img.format or "").upper())
+    except Exception:
+        media_type = None
+    if media_type is None:
+        media_type = _MEDIA_TYPES.get(os.path.splitext(image_path)[1].lower(), "image/jpeg")
+    return media_type, base64.standard_b64encode(raw).decode("utf-8")
 
 
-def _extract_text(response: anthropic.types.Message) -> str:
-    text = next((block.text for block in response.content if block.type == "text"), "")
-    return text.strip()
+def _data_url(media_type: str, image_b64: str) -> str:
+    return f"data:{media_type};base64,{image_b64}"
+
+
+def _call_once(system_prompt: str, user_content: list[dict]):
+    return _client.chat.completions.create(
+        model=settings.prompt_model,
+        max_completion_tokens=500,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_content},
+        ],
+    )
+
+
+def _log_empty_answer(response) -> None:
+    try:
+        first = response.choices[0]
+        logger.warning(
+            "Muse Wonder returned an empty answer: finish_reason=%s refusal=%r",
+            getattr(first, "finish_reason", None),
+            getattr(first.message, "refusal", None),
+        )
+    except Exception:
+        logger.warning("Muse Wonder returned an empty answer (unreadable response)")
+
+
+def _chat_completion(system_prompt: str, user_content: list[dict]) -> str:
+    try:
+        response = _call_once(system_prompt, user_content)
+        text = _extract_text(response)
+        if text:
+            return text
+        _log_empty_answer(response)
+        # Retry once: transient empties do happen. A persistent empty answer
+        # is handled by the caller.
+        return _extract_text(_call_once(system_prompt, user_content))
+    except OpenAIError as exc:
+        logger.exception("Muse Wonder prompt-enhancement LLM call failed")
+        raise PromptGenerationError(str(exc)) from exc
+
+
+def _extract_text(response) -> str:
+    message = response.choices[0].message if response.choices else None
+    content = message.content if message is not None else None
+    if not content:
+        return ""
+    if isinstance(content, str):
+        return content.strip()
+    parts = [item.text for item in content if getattr(item, "type", "") == "text"]
+    return "".join(parts).strip()
 
 
 def build_person_cleanup_prompt() -> str:
-    """Fixed prompt standardizing the reference person photo before compositing.
+    """Fixed prompt standardizing the reference person photo before the swap.
 
     An unusual pose, tight crop or cluttered background in the raw reference
-    photo gives the person-replacement step (build_person_replacement_prompt)
-    an ambiguous basis to work from, which can produce an incoherent
-    combination with the product. Standardizing it first (full body, neutral
-    pose, plain background) gives that step a much clearer single-face
-    reference — same "smaller, localized edit" rationale as the other fixed
-    prompts here.
+    photo gives the identity-swap step an ambiguous identity source, which can
+    produce a blended or incoherent face. Standardizing it first (full body,
+    neutral pose, plain background) gives that step one clear face to transfer.
     """
     return _CLEAN_PERSON_REFERENCE_PROMPT
 
 
-def build_remove_presenter_prompt() -> str:
-    """Fixed prompt isolating the product on a clean background.
+def build_identity_swap_prompt() -> str:
+    """Fixed prompt swapping the person directly on the original photo.
 
-    Not LLM-generated, for the same reason as the replacement prompt below.
-    This is also step 1 of the person-swap pipeline: it leaves zero face
-    sources in the image, so step 2's composite only ever introduces a single
-    new face — see build_person_replacement_prompt for why that matters.
+    Not LLM-generated: the swap is a well-defined mechanical edit. The single
+    pass runs against the ORIGINAL photo (Image 1), so framing, crop, pose,
+    action, background and lighting are preserved by construction — only the
+    person changes, adopting the full appearance of the reference (Image 2):
+    face, hair, skin tone and outfit. The product itself always stays exactly
+    as in Image 1, which takes priority over the outfit transfer when the
+    product is a worn garment.
     """
-    return _REMOVE_PRESENTER_PROMPT
-
-
-def build_person_replacement_prompt() -> str:
-    """Fixed, pre-optimized prompt guaranteeing the presenter swap happens.
-
-    Not LLM-generated: the replacement is a well-defined mechanical edit, so a
-    dynamically written prompt risks diluting the instruction. This step must
-    always perform the person replacement, so the wording is fixed.
-
-    Must run against a presenter-free product photo (see
-    build_remove_presenter_prompt), not the original photo: Gemini 2.5 Flash
-    Image (the model behind nano-banana) has documented identity-drift issues
-    when a composite mixes more than one distinct face — running this against
-    the original photo would mix the old presenter's face with the new one.
-    """
-    return _PERSON_REPLACEMENT_PROMPT
+    return _IDENTITY_SWAP_PROMPT
 
 
 def build_enhanced_prompt(
@@ -139,39 +196,45 @@ def build_enhanced_prompt(
     product_name: str,
     product_description: str,
     transformation: str,
+    keep_background: bool = False,
 ) -> str:
     media_type, image_b64 = _encode_image(image_path)
-    content: list[dict] = [
-        {
-            "type": "image",
-            "source": {"type": "base64", "media_type": media_type, "data": image_b64},
-        }
-    ]
 
     user_text = (
         f"Product name: {product_name}\n"
         f"Product description: {product_description}\n"
         f"Requested transformation: {transformation or '(none specified — propose one)'}\n"
-        f"Image 1 = product photo (file path: {os.path.abspath(image_path)})."
     )
-
-    content.append({"type": "text", "text": user_text})
-
-    try:
-        response = _client.messages.create(
-            model=settings.prompt_model,
-            max_tokens=500,
-            system=_EDIT_SYSTEM_PROMPT,
-            output_config={"effort": "low"},
-            messages=[{"role": "user", "content": content}],
+    if keep_background:
+        user_text += (
+            "Hard constraint: keep the original background exactly as it is — "
+            "same décor, colors and lighting. Do not change, restyle, recolor "
+            "or add anything to it.\n"
         )
-    except anthropic.APIError as exc:
-        logger.exception("Edit prompt enhancement LLM call failed")
-        raise PromptGenerationError(str(exc)) from exc
 
-    enhanced = _extract_text(response)
+    enhanced = _chat_completion(
+        _EDIT_SYSTEM_PROMPT,
+        [
+            {
+                "type": "image_url",
+                "image_url": {"url": _data_url(media_type, image_b64)},
+            },
+            {"type": "text", "text": user_text},
+        ],
+    )
     if not enhanced:
-        raise PromptGenerationError("Le modèle n'a renvoyé aucun prompt.")
+        if transformation.strip():
+            # The user asked for something specific: a generic prompt would
+            # silently ignore it, so fail loudly instead.
+            raise PromptGenerationError("Le modèle n'a renvoyé aucun prompt.")
+        logger.warning("Wonder returned no proposal — using static fallback prompt")
+        enhanced = _FALLBACK_EDIT_PROMPT
+        if keep_background:
+            enhanced += (
+                " Hard constraint: keep the original background exactly as it is — "
+                "same décor, colors and lighting. Do not change, restyle, recolor "
+                "or add anything to it."
+            )
 
     logger.info("Enhanced edit prompt generated (%d chars)", len(enhanced))
     return enhanced
@@ -188,19 +251,10 @@ def build_text_to_image_prompt(
         f"Requested scene: {scene}"
     )
 
-    try:
-        response = _client.messages.create(
-            model=settings.prompt_model,
-            max_tokens=500,
-            system=_TEXT_TO_IMAGE_SYSTEM_PROMPT,
-            output_config={"effort": "low"},
-            messages=[{"role": "user", "content": user_text}],
-        )
-    except anthropic.APIError as exc:
-        logger.exception("Text-to-image prompt enhancement LLM call failed")
-        raise PromptGenerationError(str(exc)) from exc
-
-    enhanced = _extract_text(response)
+    enhanced = _chat_completion(
+        _TEXT_TO_IMAGE_SYSTEM_PROMPT,
+        [{"type": "text", "text": user_text}],
+    )
     if not enhanced:
         raise PromptGenerationError("Le modèle n'a renvoyé aucun prompt.")
 

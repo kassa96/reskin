@@ -14,3 +14,5 @@ export interface ApiErrorResponse {
   error: string;
   message: string;
 }
+
+export type AppearanceSource = 'reference' | 'original';

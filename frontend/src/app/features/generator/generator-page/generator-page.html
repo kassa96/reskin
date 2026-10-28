@@ -147,6 +147,36 @@
 
       <app-aspect-ratio-select [value]="aspectRatio()" (valueChange)="aspectRatio.set($event)" />
 
+      @if (personImageFile() || selectedMannequinId()) {
+        <app-appearance-select [value]="appearanceSource()" (valueChange)="appearanceSource.set($event)" />
+      }
+
+      @if (selectedFile()) {
+        <label
+          class="flex cursor-pointer items-start gap-3 rounded-2xl border border-outline-variant bg-surface-container p-4"
+        >
+          <input
+            type="checkbox"
+            class="mt-0.5 h-5 w-5 shrink-0 accent-primary"
+            [checked]="keepBackground()"
+            (change)="onKeepBackgroundChange($event)"
+          />
+          <span class="flex flex-col gap-1">
+            <span class="text-sm font-medium text-on-surface">Conserver l'arrière-plan d'origine</span>
+            <span class="text-xs text-on-surface-variant">
+              Le décor de votre photo est gardé tel quel, sans modification.
+            </span>
+          </span>
+        </label>
+      }
+
+      @if (nothingToDo()) {
+        <p class="rounded-2xl border border-outline-variant bg-surface-container px-4 py-3 text-sm text-on-surface-variant">
+          Avec la personne d'origine et sans retouche décrite, il n'y a rien à générer —
+          décrivez une retouche ci-dessus ou choisissez « Nouvelle personne ».
+        </p>
+      }
+
       <div class="flex flex-wrap items-center gap-3">
         <button
           type="button"
@@ -159,7 +189,7 @@
         <button
           type="button"
           class="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-on-primary shadow-elevation-1 transition-all hover:bg-primary-hover hover:shadow-elevation-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
-          [disabled]="!canSubmit()"
+          [disabled]="!canSubmit() || nothingToDo()"
           (click)="onGenerate()"
         >
           @if (status() === 'loading') {
