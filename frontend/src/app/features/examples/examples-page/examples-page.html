@@ -1,0 +1,102 @@
+<div class="examples">
+  <header class="nav">
+    <div class="wrap nav-row">
+      <a class="brand" routerLink="/" aria-label="Reskin — retour à l'accueil">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5V6.75A2.25 2.25 0 0 1 5.25 4.5h13.5A2.25 2.25 0 0 1 21 6.75v9.75m-18 0A2.25 2.25 0 0 0 5.25 18.75h13.5A2.25 2.25 0 0 0 21 16.5m-18 0 5.03-5.03a1.5 1.5 0 0 1 2.122 0L12 14.25l3.03-3.03a1.5 1.5 0 0 1 2.122 0L21 16.5" />
+          </svg>
+        </span>
+        <span class="brand-text">Reskin<em>visuels produit pour l’Afrique</em></span>
+      </a>
+      <nav class="nav-links" aria-label="Navigation">
+        <a routerLink="/">Accueil</a>
+        <a routerLink="/" fragment="methode">Méthode</a>
+        <a routerLink="/" fragment="faq">FAQ</a>
+      </nav>
+      <a class="btn btn-primary btn-nav" routerLink="/" fragment="outil">Transformer mon image</a>
+    </div>
+  </header>
+
+  <main class="wrap main">
+    <p class="kicker">Transformations enregistrées</p>
+    <h1>Tous les visuels transformés</h1>
+    <p class="lede">
+      Chaque exemple combine trois images : la photo du produit tel qu'il est
+      vendu sur Alibaba, la personne de référence aux traits africains, et le
+      visuel final prêt à publier. Dentifrice, montre, robe, gel douche… des
+      produits sourcés à petit prix sur Alibaba, transformés en visuels dans
+      lesquels vos clientes se reconnaissent.
+    </p>
+
+    @if (loading()) {
+      <p class="state" role="status">Chargement des exemples…</p>
+    } @else if (error()) {
+      <p class="state state-error" role="alert">{{ error() }}</p>
+    } @else if (exemples().length === 0) {
+      <p class="state" role="status">Aucune transformation enregistrée pour le moment.</p>
+    } @else {
+      <div class="list">
+        @for (exemple of exemples(); track exemple.id) {
+          <article class="card">
+            <div class="card-head">
+              <div>
+                @if (exemple.categorie) {
+                  <p class="cat">{{ exemple.categorie }}</p>
+                }
+                <h2>{{ exemple.titre }}</h2>
+              </div>
+              <div class="card-links">
+                @if (exemple.lien_alibaba) {
+                  <a class="btn btn-outline btn-sm" [href]="exemple.lien_alibaba" target="_blank" rel="noopener">
+                    Fiche Alibaba ↗
+                  </a>
+                }
+                <a class="btn btn-ghost-sm" [href]="exemple.resultat_original_url" target="_blank" rel="noopener">
+                  Original HD
+                </a>
+              </div>
+            </div>
+            @if (exemple.description) {
+              <p class="desc">{{ exemple.description }}</p>
+            }
+            <div class="flow">
+              @if (exemple.produit_url) {
+                <figure class="shot">
+                  <div class="shot-head"><span class="num">1</span><h3>Produit Alibaba</h3></div>
+                  <div class="frame"><img [src]="exemple.produit_url" [alt]="'Photo fournisseur : ' + exemple.titre" loading="lazy" /></div>
+                </figure>
+                <span class="sign" aria-hidden="true">+</span>
+              }
+              @if (exemple.reference_url) {
+                <figure class="shot shot-ref">
+                  <div class="shot-head"><span class="num">2</span><h3>Personne de référence</h3></div>
+                  <div class="frame"><img [src]="exemple.reference_url" [alt]="'Personne de référence : ' + exemple.titre" loading="lazy" /></div>
+                </figure>
+                <span class="sign" aria-hidden="true">→</span>
+              }
+              <figure class="shot result">
+                <div class="shot-head"><span class="num num-gold">3</span><h3>Résultat Reskin</h3></div>
+                <div class="frame"><img [src]="exemple.resultat_url" [alt]="'Visuel final : ' + exemple.titre" loading="lazy" /></div>
+              </figure>
+            </div>
+          </article>
+        }
+      </div>
+    }
+
+    <div class="cta">
+      <div>
+        <h2>À vous de transformer votre produit</h2>
+        <p>Importez une image Alibaba et repartez avec un visuel prêt à publier.</p>
+      </div>
+      <a class="btn btn-primary btn-lg" routerLink="/" fragment="outil">Lancer une transformation</a>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-row">
+      <p><strong>Reskin</strong> — visuels produit adaptés au marché africain.</p>
+    </div>
+  </footer>
+</div>

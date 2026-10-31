@@ -64,6 +64,7 @@ export class GeneratorPage {
 
   protected readonly status = signal<Status>('idle');
   protected readonly resultUrl = signal<string | null>(null);
+  protected readonly refinedUrl = signal<string | null>(null);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly lightboxUrl = signal<string | null>(null);
 
@@ -95,7 +96,10 @@ export class GeneratorPage {
   );
 
   protected readonly canRefine = computed(
-    () => !!this.resultUrl() && this.refinePrompt().trim().length > 0 && this.status() !== 'loading',
+    () =>
+      (!!this.resultUrl() || !!this.refinedUrl()) &&
+      this.refinePrompt().trim().length > 0 &&
+      this.status() !== 'loading',
   );
 
   protected readonly personReferenceUrl = computed(
@@ -131,6 +135,7 @@ export class GeneratorPage {
     this.selectedFile.set(file);
     this.previewUrl.set(URL.createObjectURL(file));
     this.resultUrl.set(null);
+    this.refinedUrl.set(null);
     this.errorMessage.set(null);
     this.status.set('idle');
   }
@@ -143,6 +148,7 @@ export class GeneratorPage {
     this.selectedFile.set(null);
     this.previewUrl.set(null);
     this.resultUrl.set(null);
+    this.refinedUrl.set(null);
     this.errorMessage.set(null);
     this.status.set('idle');
     this.onPersonImageCleared();
@@ -220,6 +226,7 @@ export class GeneratorPage {
       .subscribe({
         next: (response) => {
           this.resultUrl.set(response.image_url);
+          this.refinedUrl.set(null);
           this.status.set('success');
         },
         error: (err: HttpErrorResponse) => this.handleGenerateError(err),
@@ -227,7 +234,7 @@ export class GeneratorPage {
   }
 
   protected onRefine(): void {
-    const currentResult = this.resultUrl();
+    const currentResult = this.refinedUrl() ?? this.resultUrl();
     const refineValue = this.refinePrompt().trim();
     if (!currentResult || !refineValue) {
       return;
@@ -253,12 +260,7 @@ export class GeneratorPage {
           )
           .subscribe({
             next: (response) => {
-              const previous = this.previewUrl();
-              if (previous) {
-                URL.revokeObjectURL(previous);
-              }
-              this.previewUrl.set(currentResult);
-              this.resultUrl.set(response.image_url);
+              this.refinedUrl.set(response.image_url);
               this.refinePrompt.set('');
               this.status.set('success');
             },
@@ -268,6 +270,26 @@ export class GeneratorPage {
       error: () => {
         this.status.set('error');
         this.errorMessage.set("Impossible de récupérer l'image générée pour la retoucher.");
+      },
+    });
+  }
+
+  protected onDownloadRefined(): void {
+    const url = this.refinedUrl();
+    if (!url) {
+      return;
+    }
+    this.http.get(url, { responseType: 'blob' }).subscribe({
+      next: (blob) => {
+        const objectUrl = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = objectUrl;
+        anchor.download = 'image-retouchee.png';
+        anchor.click();
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+      },
+      error: () => {
+        this.errorMessage.set("Impossible de télécharger l'image retouchée.");
       },
     });
   }

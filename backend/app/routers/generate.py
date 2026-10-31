@@ -183,6 +183,7 @@ async def _generate_edit_result(
         product_description,
         prompt_value,
         keep_background,
+        appearance_source,
     )
     logger.info(
         "Enhanced edit prompt built from product info + image%s",

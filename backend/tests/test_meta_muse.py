@@ -196,7 +196,7 @@ def test_enhanced_prompt_with_background_adds_hard_constraint(tmp_path, monkeypa
     assert "Hard constraint: keep the original background exactly as it is" in user_text
 
 
-def test_enhanced_prompt_without_flag_has_no_hard_constraint(tmp_path, monkeypatch):
+def test_enhanced_prompt_without_flag_has_no_background_constraint(tmp_path, monkeypatch):
     image = tmp_path / "product.jpg"
     image.write_bytes(_make_jpeg_bytes())
     completions = _FakeTextChatCompletions("an enhanced prompt")
@@ -208,7 +208,67 @@ def test_enhanced_prompt_without_flag_has_no_hard_constraint(tmp_path, monkeypat
 
     (call,) = completions.calls
     user_text = call["messages"][1]["content"][1]["text"]
-    assert "Hard constraint" not in user_text
+    assert "keep the original background exactly as it is" not in user_text
+
+
+def test_enhanced_prompt_locks_original_person_identity(tmp_path, monkeypatch):
+    image = tmp_path / "product.jpg"
+    image.write_bytes(_make_jpeg_bytes())
+    completions = _FakeTextChatCompletions("an enhanced prompt")
+    monkeypatch.setattr(prompt_service, "_client", _FakeTextClient(completions))
+
+    prompt_service.build_enhanced_prompt(
+        str(image), "Robe", "Robe en coton", "fond lumineux", False, "original"
+    )
+
+    (call,) = completions.calls
+    user_text = call["messages"][1]["content"][1]["text"]
+    assert "must remain exactly the same individual" in user_text
+
+
+def test_enhanced_prompt_locks_new_person_traits_by_default(tmp_path, monkeypatch):
+    image = tmp_path / "product.jpg"
+    image.write_bytes(_make_jpeg_bytes())
+    completions = _FakeTextChatCompletions("an enhanced prompt")
+    monkeypatch.setattr(prompt_service, "_client", _FakeTextClient(completions))
+
+    prompt_service.build_enhanced_prompt(
+        str(image), "Robe", "Robe en coton", "fond lumineux"
+    )
+
+    (call,) = completions.calls
+    user_text = call["messages"][1]["content"][1]["text"]
+    assert "do not morph, blend or dilute the person's traits" in user_text
+
+
+def test_swap_prompt_transfers_every_trait_and_nothing_from_original():
+    prompt = prompt_service.build_identity_swap_prompt()
+    for expected in (
+        "Transfer EVERY recognizable trait of Image 2's person",
+        "fully recognizable as the person from Image 2",
+        "No trait from Image 1's person may remain",
+    ):
+        assert expected in prompt
+
+
+def test_swap_prompt_keeps_original_expression_and_gaze():
+    prompt = prompt_service.build_identity_swap_prompt()
+    for expected in (
+        "Keep Image 1's exact facial expression and gaze",
+        "same eyes direction and look, same smile and mouth shape",
+        "Do not alter, invert or neutralize the original gaze, smile or feeling",
+    ):
+        assert expected in prompt
+
+
+def test_swap_prompt_enforces_uniform_skin_tone_on_whole_body():
+    prompt = prompt_service.build_identity_swap_prompt()
+    for expected in (
+        "uniformly to EVERY visible skin area",
+        "hands and fingers, legs, feet and toes",
+        "no patch, especially on hands or feet",
+    ):
+        assert expected in prompt
 
 
 def test_build_prompt_demands_high_quality():
@@ -464,16 +524,18 @@ def test_enhanced_prompt_fallback_keeps_background_lock(tmp_path, monkeypatch):
     assert "Hard constraint: keep the original background exactly as it is" in result
 
 
-def test_enhanced_prompt_still_raises_with_transformation(monkeypatch, tmp_path):
+def test_enhanced_prompt_falls_back_to_raw_transformation(monkeypatch, tmp_path):
     image = tmp_path / "product.jpg"
     image.write_bytes(_make_jpeg_bytes())
     completions = _SeqTextChatCompletions(["", ""])
     monkeypatch.setattr(prompt_service, "_client", _FakeTextClient(completions))
 
-    with pytest.raises(prompt_service.PromptGenerationError):
-        prompt_service.build_enhanced_prompt(
-            str(image), "Robe", "Robe en coton", "fond lumineux"
-        )
+    result = prompt_service.build_enhanced_prompt(
+        str(image), "Robe", "Robe en coton", "fond lumineux"
+    )
+
+    assert result.startswith("fond lumineux.")
+    assert "perfectly unchanged" in result
     assert len(completions.calls) == 2
 
 

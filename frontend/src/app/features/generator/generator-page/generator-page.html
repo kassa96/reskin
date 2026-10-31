@@ -208,6 +208,26 @@
         />
       }
 
+      @if (refinedUrl()) {
+        <div class="flex flex-col gap-3 rounded-3xl bg-surface p-6 shadow-elevation-1 sm:p-8">
+          <span class="text-sm font-medium text-on-surface">Image retouchée</span>
+          <button
+            type="button"
+            class="relative flex cursor-zoom-in items-center justify-center overflow-hidden rounded-2xl border border-outline-variant bg-surface-container"
+            (click)="openLightbox(refinedUrl()!)"
+          >
+            <img [src]="refinedUrl()" alt="Image retouchée" class="max-h-[32rem] w-full object-contain" />
+          </button>
+          <button
+            type="button"
+            class="inline-flex items-center gap-2 self-start rounded-full bg-secondary-container px-5 py-2.5 text-sm font-medium text-on-secondary-container transition-colors hover:bg-secondary-container/80"
+            (click)="onDownloadRefined()"
+          >
+            Télécharger l'image retouchée
+          </button>
+        </div>
+      }
+
       @if (status() === 'success' && resultUrl()) {
         <div class="flex flex-col gap-4 rounded-2xl border border-outline-variant bg-surface-container p-4 sm:p-6">
           <app-prompt-input

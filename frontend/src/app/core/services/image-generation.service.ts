@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
-import { AppearanceSource, GenerateResponse, Mannequin } from '../models/generate.model';
+import { AppearanceSource, ExempleTransformation, GenerateResponse, Mannequin } from '../models/generate.model';
 
 @Injectable({ providedIn: 'root' })
 export class ImageGenerationService {
@@ -38,6 +38,28 @@ export class ImageGenerationService {
     formData.append('keep_background', String(keepBackground));
     formData.append('appearance_source', appearanceSource);
     return this.http.post<GenerateResponse>(`${this.baseUrl}/api/generate`, formData);
+  }
+
+  getExemples(): Observable<ExempleTransformation[]> {
+    return this.http
+      .get<ExempleTransformation[]>(`${this.baseUrl}/api/exemples`)
+      .pipe(
+        map((exemples) =>
+          exemples.map((e) => ({
+            ...e,
+            produit_url: e.produit_url ? `${this.baseUrl}${e.produit_url}` : null,
+            produit_original_url: e.produit_original_url
+              ? `${this.baseUrl}${e.produit_original_url}`
+              : null,
+            reference_url: e.reference_url ? `${this.baseUrl}${e.reference_url}` : null,
+            reference_original_url: e.reference_original_url
+              ? `${this.baseUrl}${e.reference_original_url}`
+              : null,
+            resultat_url: `${this.baseUrl}${e.resultat_url}`,
+            resultat_original_url: `${this.baseUrl}${e.resultat_original_url}`,
+          })),
+        ),
+      );
   }
 
   getMannequins(): Observable<Mannequin[]> {

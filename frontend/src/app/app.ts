@@ -1,13 +1,12 @@
 import { Component } from '@angular/core';
-
-import { GeneratorPage } from './features/generator/generator-page/generator-page';
+import { RouterOutlet } from '@angular/router';
 
 @Component({
   selector: 'app-root',
-  imports: [GeneratorPage],
+  imports: [RouterOutlet],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
 export class App {
-  protected title = 'frontend';
+  protected title = 'Reskin';
 }

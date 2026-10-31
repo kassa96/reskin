@@ -71,14 +71,29 @@ _IDENTITY_SWAP_PROMPT = (
     "person from Image 2. "
     "Transfer from Image 2 the full appearance: face, hair, skin tone AND outfit and "
     "clothing, adapted to the exact pose, head position, angle and size in Image 1. "
+    "Transfer EVERY recognizable trait of Image 2's person — face shape and all "
+    "facial features, eyes, eyebrows, nose, lips, hairstyle, hair color and length, "
+    "skin tone, and body build — so the resulting person is fully recognizable as "
+    "the person from Image 2. "
+    "No trait from Image 1's person may remain: do not keep the original face, "
+    "hairstyle, skin tone or body. "
+    "Apply Image 2's exact skin tone uniformly to EVERY visible skin area — face, "
+    "neck, ears, arms, hands and fingers, legs, feet and toes. The complexion must "
+    "be perfectly even and natural across the whole body: no patch, especially on "
+    "hands or feet, may keep Image 1's original skin color. "
     "Exception with absolute priority: the product itself stays exactly as in Image 1 "
     "in all cases — if the product is a garment worn by the person, keep that garment "
     "exactly as worn and transfer only face, hair and skin tone. "
-    "Keep everything else from Image 1: the same body and posture, the same hand "
+    "Keep everything else from Image 1: the same posture, the same hand "
     "positions, the same action, the same background. "
     "Do not blend facial features from both images: the result must show ONE coherent "
     "person — Image 2's appearance performing Image 1's exact pose in Image 1's exact "
     "scene. "
+    "Keep Image 1's exact facial expression and gaze: the identity (face shape, "
+    "features, skin tone, hair) comes from Image 2, but the living expression stays "
+    "Image 1's — same eyes direction and look, same smile and mouth shape, same "
+    "emotion readable on the face. Do not alter, invert or neutralize the original "
+    "gaze, smile or feeling. "
     "Render in high resolution with sharp fine details, clean edges and a professional "
     "studio finish."
 )
@@ -197,6 +212,7 @@ def build_enhanced_prompt(
     product_description: str,
     transformation: str,
     keep_background: bool = False,
+    appearance_source: str = "reference",
 ) -> str:
     media_type, image_b64 = _encode_image(image_path)
 
@@ -211,6 +227,27 @@ def build_enhanced_prompt(
             "same décor, colors and lighting. Do not change, restyle, recolor "
             "or add anything to it.\n"
         )
+    if appearance_source == "original":
+        # The seller kept the original presenter: the retouch must preserve
+        # that person's identity exactly — same face, features, hair, skin.
+        user_text += (
+            "Hard constraint: the person in the photo must remain exactly the same "
+            "individual — identical face, facial features, hairstyle, hair color "
+            "and skin tone. Do not beautify, slim, rejuvenate or otherwise alter "
+            "the person's identity or traits.\n"
+        )
+    else:
+        # The presenter was swapped to the reference person beforehand: the
+        # retouch must keep every trait of that new person, with no drift or
+        # blending toward anyone else.
+        user_text += (
+            "Hard constraint: the person in the photo must keep exactly the same "
+            "identity as in the provided photo — same face, facial features, "
+            "hairstyle, hair color and skin tone. Transfer is complete: do not "
+            "morph, blend or dilute the person's traits toward any other person. "
+            "Keep the skin tone perfectly even and natural over the whole body, "
+            "including hands and feet.\n"
+        )
 
     enhanced = _chat_completion(
         _EDIT_SYSTEM_PROMPT,
@@ -224,16 +261,27 @@ def build_enhanced_prompt(
     )
     if not enhanced:
         if transformation.strip():
-            # The user asked for something specific: a generic prompt would
-            # silently ignore it, so fail loudly instead.
-            raise PromptGenerationError("Le modèle n'a renvoyé aucun prompt.")
-        logger.warning("Wonder returned no proposal — using static fallback prompt")
-        enhanced = _FALLBACK_EDIT_PROMPT
+            # Wonder stayed silent: reuse the user's own transformation verbatim
+            # (so retouching never fails with a 502) framed by the same
+            # preservation locks the LLM would have added.
+            logger.warning("Wonder returned no proposal — using raw transformation")
+            enhanced = (
+                f"{transformation.strip()}. Keep the product itself (shape, "
+                "colors, logo, proportions) perfectly unchanged."
+            )
+        else:
+            logger.warning("Wonder returned no proposal — using static fallback prompt")
+            enhanced = _FALLBACK_EDIT_PROMPT
         if keep_background:
             enhanced += (
                 " Hard constraint: keep the original background exactly as it is — "
                 "same décor, colors and lighting. Do not change, restyle, recolor "
                 "or add anything to it."
+            )
+        if appearance_source == "original":
+            enhanced += (
+                " Keep the person exactly the same individual — identical face, "
+                "features, hair and skin tone."
             )
 
     logger.info("Enhanced edit prompt generated (%d chars)", len(enhanced))

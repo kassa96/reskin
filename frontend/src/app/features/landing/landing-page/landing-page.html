@@ -1,0 +1,296 @@
+<div class="landing">
+  <header class="nav">
+    <div class="wrap nav-row">
+      <a class="brand" href="#haut" aria-label="Reskin — retour en haut">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5V6.75A2.25 2.25 0 0 1 5.25 4.5h13.5A2.25 2.25 0 0 1 21 6.75v9.75m-18 0A2.25 2.25 0 0 0 5.25 18.75h13.5A2.25 2.25 0 0 0 21 16.5m-18 0 5.03-5.03a1.5 1.5 0 0 1 2.122 0L12 14.25l3.03-3.03a1.5 1.5 0 0 1 2.122 0L21 16.5" />
+          </svg>
+        </span>
+        <span class="brand-text">Reskin<em>visuels produit pour l’Afrique</em></span>
+      </a>
+      <nav class="nav-links" aria-label="Sections de la page">
+        <a href="#exemples">Exemples réels</a>
+        <a routerLink="/exemples">Galerie</a>
+        <a href="#methode">Méthode</a>
+        <a href="#formats">Formats</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+      <a class="btn btn-primary btn-nav" href="#outil">Africaniser mon produit</a>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero" id="haut">
+    <div class="wrap hero-grid">
+      <div class="hero-copy">
+        <p class="hero-origin">Conçu pour les marchands africains</p>
+        <h1>Vos produits Alibaba, adaptés aux traits africains.</h1>
+        <p class="lede">
+          Les photos Alibaba montrent des visages et des décors qui ne ressemblent
+          pas à vos clientes. Reskin les remplace par des traits africains —
+          teints, visages, coiffures, décors d’ici — pour que chacune se
+          reconnaisse dans votre pub et ait envie d’acheter. Sans studio,
+          sans graphiste, en quelques secondes.
+        </p>
+        <div class="hero-actions">
+          <a class="btn btn-primary btn-lg" href="#outil">Africaniser mon produit</a>
+          <a class="hero-link" href="#exemples">Voir les exemples réels ↓</a>
+        </div>
+        <dl class="hero-stats">
+          <div><dt>100&nbsp;%</dt><dd>traits africains : teints, visages, coiffures d’ici</dd></div>
+          <div><dt>3</dt><dd>images combinées : produit + personne + décor local</dd></div>
+          <div><dt>9:16</dt><dd>format vertical prêt pour TikTok &amp; Reels</dd></div>
+        </dl>
+      </div>
+
+      <div class="hero-demo">
+        <div
+          class="compare"
+          role="group"
+          aria-label="Comparaison avant après : déplacez le curseur"
+        >
+          <img
+            class="compare-img"
+            src="assets/demo/apres-pyjama.jpg"
+            alt="Après : pyjama porté par une mannequin dans une chambre cosy"
+            loading="eager"
+          />
+          <div class="compare-top" [style.clip-path]="'inset(0 ' + (100 - comparePos()) + '% 0 0)'">
+            <img
+              class="compare-img"
+              src="assets/demo/avant-pyjama.jpg"
+              alt="Avant : photo fournisseur du pyjama sur fond neutre"
+              loading="eager"
+            />
+          </div>
+          <span class="tag tag-before">Avant · Alibaba</span>
+          <span class="tag tag-after">Après · Reskin</span>
+          <span class="compare-line" [style.left.%]="comparePos()" aria-hidden="true">
+            <span class="compare-knob">↔</span>
+          </span>
+          <input
+            class="compare-range"
+            type="range"
+            min="0"
+            max="100"
+            step="1"
+            [value]="comparePos()"
+            (input)="onCompareInput($event)"
+            aria-label="Curseur de comparaison avant après"
+          />
+        </div>
+        <p class="hero-caption">
+          Faites glisser le curseur — pyjama pilou rose,
+          <a href="https://www.alibaba.com/product-detail/Women-s-Pink-Contrast-Trim-Coral_1601966295026.html?spm=a27aq.27095423.1978240560.30.78372277xoCTC3" target="_blank" rel="noopener">fiche Alibaba d’origine ↗</a>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <p class="platforms" aria-label="Canaux de publication">
+    <span class="wrap platforms-row">
+      <strong>Un visuel, partout où vous vendez</strong>
+      <span>TikTok · Instagram · Facebook · WhatsApp · Fiche produit</span>
+    </span>
+  </p>
+
+  <!-- EXEMPLES -->
+  <section class="section section-sand" id="exemples">
+    <div class="wrap">
+      <div class="head-split">
+        <div>
+          <h2>Le même produit, avec des traits africains</h2>
+          <p class="muted">
+            Pour chaque produit : <strong>1.</strong> la photo du vendeur,
+            <strong>2.</strong> la personne qui le présente,
+            <strong>3.</strong> le visuel final prêt à vendre.
+            Choisissez un produit pour voir le détail.
+          </p>
+        </div>
+        <div class="tabs" role="tablist" aria-label="Choisir un exemple produit">
+          @for (demo of demos; track demo.id) {
+            <button
+              type="button"
+              role="tab"
+              class="tab"
+              [class.tab-active]="demo.id === selectedId()"
+              [attr.aria-selected]="demo.id === selectedId()"
+              (click)="select(demo.id)"
+            >{{ demo.tab }}</button>
+          }
+        </div>
+      </div>
+
+      @if (selectedDemo(); as demo) {
+        <article class="showcase" role="tabpanel" [attr.aria-label]="demo.produit">
+          <div class="showcase-flow">
+            <figure class="shot">
+              <div class="shot-head">
+                <span class="shot-num">1</span>
+                <h4>Produit Alibaba</h4>
+              </div>
+              <div class="shot-frame">
+                <img [src]="demo.avant" [alt]="'Photo fournisseur Alibaba : ' + demo.produit" loading="lazy" />
+              </div>
+              <figcaption>La photo du vendeur Alibaba, telle quelle.</figcaption>
+            </figure>
+            <span class="flow-sign" aria-hidden="true">+</span>
+            <figure class="shot shot-ref">
+              <div class="shot-head">
+                <span class="shot-num">2</span>
+                <h4>Personne de référence</h4>
+              </div>
+              <div class="shot-frame">
+                <img [src]="demo.reference" [alt]="'Personne de référence pour ' + demo.produit" loading="lazy" />
+              </div>
+              <figcaption>La personne choisie pour présenter le produit à vos clients.</figcaption>
+            </figure>
+            <span class="flow-sign" aria-hidden="true">→</span>
+            <figure class="shot shot-result">
+              <div class="shot-head">
+                <span class="shot-num shot-num-gold">3</span>
+                <h4>Résultat Reskin</h4>
+              </div>
+              <div class="shot-frame">
+                <img [src]="demo.apres" [alt]="'Visuel final Reskin : ' + demo.produit" loading="lazy" />
+              </div>
+              <figcaption>Votre produit, inchangé, présenté à vos clients.</figcaption>
+            </figure>
+          </div>
+          <div class="showcase-meta">
+            <p class="meta-cat">{{ demo.categorie }}</p>
+            <h3>{{ demo.produit }}</h3>
+            <p class="muted">{{ demo.transformation }}</p>
+            <div class="meta-row">
+              <a class="btn btn-outline" [href]="demo.lienAlibaba" target="_blank" rel="noopener">
+                Voir la fiche Alibaba ↗
+              </a>
+              <a class="btn btn-primary" href="#outil">Refaire ce type de visuel</a>
+            </div>
+            <a class="gallery-link" href="#galerie">Voir tous les visuels transformés ↓</a>
+          </div>
+        </article>
+      }
+    </div>
+  </section>
+
+  <!-- GALERIE COMPLÈTE -->
+  <section class="section gallery-teaser" id="galerie">
+    <div class="wrap teaser-row">
+      <div class="teaser-imgs" aria-hidden="true">
+        <img src="assets/demo/apres-deodorant.jpg" alt="" loading="lazy" />
+        <img src="assets/demo/apres-dentifrice.jpg" alt="" loading="lazy" />
+        <img src="assets/demo/apres-sport.jpg" alt="" loading="lazy" />
+      </div>
+      <div class="teaser-copy">
+        <h2>Tous les produits africanisés, sur une page dédiée</h2>
+        <p class="muted">
+          Retrouvez tous les produits déjà transformés — photo du vendeur,
+          personne qui le présente et visuel final — avec les liens Alibaba.
+          Revenez régulièrement : la galerie s’enrichit de chaque nouvelle transformation.
+        </p>
+        <a class="btn btn-primary" routerLink="/exemples">Voir toute la galerie</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- MÉTHODE -->
+  <section class="section" id="methode">
+    <div class="wrap method-grid">
+      <div class="method-sticky">
+        <h2>D’un produit générique à un visuel africain, en trois gestes</h2>
+        <p class="muted">
+          Le même réflexe que commander en ligne : vous montrez le produit,
+          vous choisissez la personne qui parle à vos clients,
+          vous publiez un visuel dans lequel ils se reconnaissent.
+        </p>
+        <a class="btn btn-primary" href="#outil">Africaniser maintenant</a>
+      </div>
+      <ol class="method-steps">
+        <li>
+          <span class="method-num" aria-hidden="true">01</span>
+          <h3>Importez la photo du produit</h3>
+          <p>Enregistrez l’image depuis la fiche Alibaba — ou photographiez le produit reçu. Ajoutez la photo d’une personne aux traits africains pour incarner la mise en scène.</p>
+        </li>
+        <li>
+          <span class="method-num" aria-hidden="true">02</span>
+          <h3>Décrivez la scène en français</h3>
+          <p>« Femme africaine au teint ébène, cheveux crépus, salon lumineux de Dakar, ambiance chaleureuse ». Précisez le teint, la coiffure, le décor d’ici. Choisissez le format : vertical 9:16 pour TikTok, carré 1:1 pour la boutique.</p>
+        </li>
+        <li>
+          <span class="method-num" aria-hidden="true">03</span>
+          <h3>Publiez partout</h3>
+          <p>Comparez, ajustez d’une phrase si besoin (« teint plus foncé », « décor de marché »), téléchargez. Le même visuel alimente vos pubs et votre fiche produit.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ATOUTS + FORMATS -->
+  <section class="section section-dark" id="formats">
+    <div class="wrap dark-grid">
+      <div>
+        <h2>Vos clients se reconnaissent, ils achètent</h2>
+        <ul class="dark-list">
+          <li><strong>Des traits africains, pas un catalogue générique.</strong> Teints ébène et métissés, visages d’ici, cheveux crépus, tresses et coiffures locales, hommes et femmes.</li>
+          <li><strong>Des décors qui parlent d’ici.</strong> Salon lumineux de Dakar, cour d’Abidjan, marché de Douala, lumière chaude d’Afrique de l’Ouest.</li>
+          <li><strong>Le produit reste intact.</strong> Forme, couleurs et étiquette conservés — seule la personne et le décor épousent les traits africains.</li>
+          <li><strong>Zéro budget studio.</strong> Une photo fournisseur suffit : pas de mannequin à payer, pas de shooting à organiser.</li>
+        </ul>
+      </div>
+      <div class="format-card">
+        <h3>Formats livrés automatiquement</h3>
+        <dl>
+          <div><dt>TikTok · Reels · Statuts</dt><dd>9:16 vertical plein écran</dd></div>
+          <div><dt>Feed Facebook · Instagram</dt><dd>4:5 portrait ou 1:1 carré</dd></div>
+          <div><dt>Fiche produit · Jumia · Shopify</dt><dd>1:1 carré, fond propre</dd></div>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="section" id="faq">
+    <div class="wrap faq">
+      <h2>Questions fréquentes</h2>
+      <details open>
+        <summary>Le produit reste-t-il identique sur le visuel final ?</summary>
+        <p>Oui : Reskin conserve le produit (forme, couleurs, étiquette) et ne transforme que le décor, la personne et l’ambiance. Contrôlez toujours le résultat avant publication.</p>
+      </details>
+      <details>
+        <summary>De quoi ai-je besoin pour commencer ?</summary>
+        <p>L’image du produit (depuis Alibaba ou photo du produit reçu), éventuellement une photo de référence d’une personne aux traits africains, et une phrase en français décrivant la scène : teint, coiffure, décor.</p>
+      </details>
+      <details>
+        <summary>Puis-je choisir le type de traits africains ?</summary>
+        <p>Oui. Décrivez le teint, la coiffure et le décor qui correspondent à vos clients — femme au teint ébène avec tresses, homme métissé en tenue de ville, ambiance de marché… L’outil adapte la mise en scène en gardant votre produit inchangé.</p>
+      </details>
+      <details>
+        <summary>Puis-je utiliser le visuel pour mes pubs et ma boutique ?</summary>
+        <p>Oui. Générez en 9:16 pour TikTok, Reels et statuts WhatsApp, et en 1:1 pour votre fiche produit ou vos posts Facebook et Instagram.</p>
+      </details>
+      <details>
+        <summary>Et si le résultat ne me plaît pas ?</summary>
+        <p>Précisez une retouche en une phrase (« fond plus lumineux », « cadrage plus serré ») et régénérez depuis l’outil ci-dessous.</p>
+      </details>
+    </div>
+  </section>
+
+  <section class="cta-band">
+    <div class="wrap cta-row">
+      <div>
+        <h2>Prêt à africaniser votre premier produit ?</h2>
+        <p>Importez une image Alibaba et repartez avec un visuel aux traits africains, publiable partout.</p>
+      </div>
+      <a class="btn btn-gold btn-lg" href="#outil">Africaniser mon produit</a>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="wrap footer-row">
+      <p><strong>Reskin</strong> — vos produits Alibaba adaptés aux traits africains, pour les marchands africains.</p>
+      <p class="muted small">Marques et produits cités : propriété de leurs vendeurs Alibaba respectifs, liens fournis à titre de démonstration.</p>
+    </div>
+  </footer>
+</div>

@@ -16,3 +16,17 @@ export interface ApiErrorResponse {
 }
 
 export type AppearanceSource = 'reference' | 'original';
+
+export interface ExempleTransformation {
+  id: string;
+  titre: string;
+  categorie: string;
+  description: string;
+  lien_alibaba: string;
+  produit_url: string | null;
+  produit_original_url: string | null;
+  reference_url: string | null;
+  reference_original_url: string | null;
+  resultat_url: string;
+  resultat_original_url: string;
+}

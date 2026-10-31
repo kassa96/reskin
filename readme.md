@@ -104,3 +104,4 @@ Ouvrir [http://localhost:4200](http://localhost:4200) dans le navigateur.
 - `META_API_KEY` reste toujours côté backend (fichier `backend/.env`, jamais commité — voir `.gitignore`) ; le frontend ne la voit jamais.
 - Pas de Docker ni de configuration de déploiement pour ce MVP.
 
+

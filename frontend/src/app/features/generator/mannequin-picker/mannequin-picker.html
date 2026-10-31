@@ -1,10 +1,10 @@
 <div class="flex flex-col gap-2">
   <span class="text-sm font-medium text-on-surface">Ou choisissez un mannequin par défaut</span>
-  <div class="grid max-h-56 grid-cols-4 gap-2 overflow-y-auto pr-1 sm:grid-cols-6">
+  <div class="grid max-h-96 grid-cols-3 gap-3 overflow-y-auto pr-1 sm:grid-cols-4">
     @for (mannequin of mannequins(); track mannequin.id) {
       <button
         type="button"
-        class="group relative aspect-square overflow-hidden rounded-xl border-2 transition-colors"
+        class="group relative aspect-[3/4] overflow-hidden rounded-xl border-2 bg-surface-container transition-colors"
         [class]="
           selectedId() === mannequin.id
             ? 'border-primary'
@@ -13,7 +13,7 @@
         [title]="mannequin.label"
         (click)="toggle(mannequin.id)"
       >
-        <img [src]="mannequin.image_url" [alt]="mannequin.label" class="h-full w-full object-cover" />
+        <img [src]="mannequin.image_url" [alt]="mannequin.label" class="h-full w-full object-contain" />
 
         @if (selectedId() === mannequin.id) {
           <span class="absolute inset-0 flex items-center justify-center bg-primary/40">

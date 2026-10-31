@@ -6,7 +6,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
 from app.logging_conf import setup_logging
-from app.mannequins import MANNEQUIN_DIR
+from app.examples import CACHE_DIR, EXAMPLES_DIR
+from app.mannequins import active_mannequin_dir
 
 setup_logging()
 logger = logging.getLogger("reskin.main")
@@ -20,6 +21,7 @@ except ValidationError:
     )
     raise
 
+from app.routers.examples import router as examples_router  # noqa: E402
 from app.routers.generate import router as generate_router  # noqa: E402
 from app.routers.mannequins import router as mannequins_router  # noqa: E402
 
@@ -32,8 +34,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-if MANNEQUIN_DIR.is_dir():
-    app.mount("/static/mannequins", StaticFiles(directory=MANNEQUIN_DIR), name="mannequins")
+_mannequin_static_dir = active_mannequin_dir()
+if _mannequin_static_dir.is_dir():
+    app.mount(
+        "/static/mannequins",
+        StaticFiles(directory=_mannequin_static_dir),
+        name="mannequins",
+    )
 
+if EXAMPLES_DIR.is_dir():
+    app.mount(
+        "/static/exemples-src",
+        StaticFiles(directory=EXAMPLES_DIR),
+        name="exemples-src",
+    )
+CACHE_DIR.mkdir(parents=True, exist_ok=True)
+app.mount(
+    "/static/exemples",
+    StaticFiles(directory=CACHE_DIR),
+    name="exemples",
+)
+
+app.include_router(examples_router)
 app.include_router(generate_router)
 app.include_router(mannequins_router)
