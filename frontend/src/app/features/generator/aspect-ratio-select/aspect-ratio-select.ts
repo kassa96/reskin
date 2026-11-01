@@ -14,9 +14,9 @@ export class AspectRatioSelect {
 
   protected readonly options: AspectRatioOption[] = [
     { value: 'auto', label: 'Auto' },
-    { value: '1:1', label: 'Carré' },
+    { value: '1:1', label: 'Square' },
     { value: '4:5', label: 'Portrait' },
     { value: '9:16', label: 'Story' },
-    { value: '16:9', label: 'Paysage' },
+    { value: '16:9', label: 'Landscape' },
   ];
 }

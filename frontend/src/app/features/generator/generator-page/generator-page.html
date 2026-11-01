@@ -1,4 +1,25 @@
-<div class="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-8 sm:py-12">
+<div class="outil flex min-h-screen flex-col">
+  <header class="nav">
+    <div class="wrap nav-row">
+      <a class="brand" routerLink="/" aria-label="Reskin — back to top">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5V6.75A2.25 2.25 0 0 1 5.25 4.5h13.5A2.25 2.25 0 0 1 21 6.75v9.75m-18 0A2.25 2.25 0 0 0 5.25 18.75h13.5A2.25 2.25 0 0 0 21 16.5m-18 0 5.03-5.03a1.5 1.5 0 0 1 2.122 0L12 14.25l3.03-3.03a1.5 1.5 0 0 1 2.122 0L21 16.5" />
+          </svg>
+        </span>
+        <span class="brand-text">Reskin<em>product visuals for Africa</em></span>
+      </a>
+      <nav class="nav-links" aria-label="Page sections">
+        <a routerLink="/" fragment="exemples">Real examples</a>
+        <a routerLink="/exemples">Gallery</a>
+        <a routerLink="/" fragment="methode">Method</a>
+        <a routerLink="/" fragment="formats">Formats</a>
+        <a routerLink="/" fragment="faq">FAQ</a>
+      </nav>
+      <a class="btn btn-primary btn-nav" routerLink="/outil">Africanize my product</a>
+    </div>
+  </header>
+  <div class="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8 sm:py-12">
   <header class="flex items-center gap-4">
     <div
       class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-container text-on-primary-container"
@@ -13,10 +34,10 @@
     </div>
     <div class="flex flex-col gap-0.5">
       <h1 class="text-xl font-semibold tracking-tight text-on-surface sm:text-2xl">
-        Personnalisation d'image produit
+        Product image customization
       </h1>
       <p class="text-sm text-on-surface-variant">
-        Transformez vos visuels produit génériques (fond, ambiance, mannequin) en quelques secondes.
+        Turn your generic product visuals (background, mood, model) around in seconds.
       </p>
     </div>
   </header>
@@ -39,7 +60,7 @@
         class="text-sm font-medium"
         [class]="currentStep() === 1 ? 'text-on-surface' : 'text-on-surface-variant'"
       >
-        Produit
+        Product
       </span>
     </li>
     <li class="h-0.5 flex-1 rounded-full" [class]="currentStep() > 1 ? 'bg-primary' : 'bg-outline-variant'"></li>
@@ -54,7 +75,7 @@
         class="text-sm font-medium"
         [class]="currentStep() === 2 ? 'text-on-surface' : 'text-on-surface-variant'"
       >
-        Génération
+        Generation
       </span>
     </li>
   </ol>
@@ -78,7 +99,7 @@
         [disabled]="!canGoToStep2()"
         (click)="goToStep2()"
       >
-        Suivant
+        Next
       </button>
     </section>
   }
@@ -87,19 +108,19 @@
     <section class="flex flex-col gap-6 rounded-3xl bg-surface p-6 shadow-elevation-1 sm:p-8">
       <div class="flex items-center justify-between rounded-2xl bg-surface-container-high px-4 py-3">
         <span class="text-sm text-on-surface-variant">
-          Produit : <span class="font-medium text-on-surface">{{ productName() }}</span>
+          Product: <span class="font-medium text-on-surface">{{ productName() }}</span>
         </span>
         <button
           type="button"
           class="rounded-full px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary-container"
           (click)="goToStep1()"
         >
-          Modifier
+          Edit
         </button>
       </div>
 
       <p class="text-sm text-on-surface-variant">
-        Ajoutez une image du produit, décrivez l'image souhaitée, ou faites les deux.
+        Add a product image, describe the image you want, or do both.
       </p>
 
       <app-image-dropzone
@@ -112,15 +133,15 @@
 
       @if (selectedFile()) {
         <div class="flex flex-col gap-2 rounded-2xl border border-outline-variant bg-surface-container p-4">
-          <span class="text-sm font-medium text-on-surface">Remplacer la personne sur la photo (optionnel)</span>
+          <span class="text-sm font-medium text-on-surface">Replace the person in the photo (optional)</span>
           <p class="text-xs text-on-surface-variant">
-            Importez la photo de la personne à faire apparaître à la place de celle présente sur l'image produit.
+            Upload the photo of the person to show instead of the one in the product image.
           </p>
           <app-image-dropzone
             [previewUrl]="personImagePreviewUrl()"
             [compact]="true"
-            label="Glissez-déposez une photo de la personne ici, ou cliquez pour en sélectionner une"
-            altText="Aperçu de la personne"
+            label="Drag and drop a photo of the person here, or click to select one"
+            altText="Person preview"
             (fileSelected)="onPersonImageSelected($event)"
             (validationError)="onValidationError($event)"
             (cleared)="onPersonImageCleared()"
@@ -147,10 +168,6 @@
 
       <app-aspect-ratio-select [value]="aspectRatio()" (valueChange)="aspectRatio.set($event)" />
 
-      @if (personImageFile() || selectedMannequinId()) {
-        <app-appearance-select [value]="appearanceSource()" (valueChange)="appearanceSource.set($event)" />
-      }
-
       @if (selectedFile()) {
         <label
           class="flex cursor-pointer items-start gap-3 rounded-2xl border border-outline-variant bg-surface-container p-4"
@@ -162,19 +179,12 @@
             (change)="onKeepBackgroundChange($event)"
           />
           <span class="flex flex-col gap-1">
-            <span class="text-sm font-medium text-on-surface">Conserver l'arrière-plan d'origine</span>
+            <span class="text-sm font-medium text-on-surface">Keep the original background</span>
             <span class="text-xs text-on-surface-variant">
-              Le décor de votre photo est gardé tel quel, sans modification.
+              Your photo's setting is kept exactly as is, with no changes.
             </span>
           </span>
         </label>
-      }
-
-      @if (nothingToDo()) {
-        <p class="rounded-2xl border border-outline-variant bg-surface-container px-4 py-3 text-sm text-on-surface-variant">
-          Avec la personne d'origine et sans retouche décrite, il n'y a rien à générer —
-          décrivez une retouche ci-dessus ou choisissez « Nouvelle personne ».
-        </p>
       }
 
       <div class="flex flex-wrap items-center gap-3">
@@ -183,19 +193,19 @@
           class="rounded-full border-2 border-outline px-6 py-2.5 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-variant"
           (click)="goToStep1()"
         >
-          Précédent
+          Back
         </button>
 
         <button
           type="button"
           class="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-on-primary shadow-elevation-1 transition-all hover:bg-primary-hover hover:shadow-elevation-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
-          [disabled]="!canSubmit() || nothingToDo()"
+          [disabled]="!canSubmit()"
           (click)="onGenerate()"
         >
           @if (status() === 'loading') {
             <span class="h-4 w-4 animate-spin rounded-full border-2 border-on-primary/30 border-t-on-primary"></span>
           }
-          {{ status() === 'loading' ? 'Génération en cours...' : 'Générer' }}
+          {{ status() === 'loading' ? 'Generating...' : 'Generate' }}
         </button>
       </div>
 
@@ -210,20 +220,20 @@
 
       @if (refinedUrl()) {
         <div class="flex flex-col gap-3 rounded-3xl bg-surface p-6 shadow-elevation-1 sm:p-8">
-          <span class="text-sm font-medium text-on-surface">Image retouchée</span>
+          <span class="text-sm font-medium text-on-surface">Retouched image</span>
           <button
             type="button"
             class="relative flex cursor-zoom-in items-center justify-center overflow-hidden rounded-2xl border border-outline-variant bg-surface-container"
             (click)="openLightbox(refinedUrl()!)"
           >
-            <img [src]="refinedUrl()" alt="Image retouchée" class="max-h-[32rem] w-full object-contain" />
+            <img [src]="refinedUrl()" alt="Retouched image" class="max-h-[32rem] w-full object-contain" />
           </button>
           <button
             type="button"
             class="inline-flex items-center gap-2 self-start rounded-full bg-secondary-container px-5 py-2.5 text-sm font-medium text-on-secondary-container transition-colors hover:bg-secondary-container/80"
             (click)="onDownloadRefined()"
           >
-            Télécharger l'image retouchée
+            Download the retouched image
           </button>
         </div>
       }
@@ -233,9 +243,9 @@
           <app-prompt-input
             [value]="refinePrompt()"
             (valueChange)="refinePrompt.set($event)"
-            label="Retoucher le résultat"
-            placeholder="ex: éclaircis légèrement le fond, recadre plus serré"
-            hint="La retouche s'applique sur le dernier résultat généré."
+            label="Retouch the result"
+            placeholder="e.g. brighten the background slightly, crop tighter"
+            hint="Retouching applies to the latest generated result."
           />
 
           <button
@@ -247,14 +257,19 @@
             @if (status() === 'loading') {
               <span class="h-4 w-4 animate-spin rounded-full border-2 border-on-primary/30 border-t-on-primary"></span>
             }
-            {{ status() === 'loading' ? 'Retouche en cours...' : 'Retoucher' }}
+            {{ status() === 'loading' ? 'Retouching...' : 'Retouch' }}
           </button>
         </div>
       }
     </section>
   }
 
+  <footer class="pt-2 text-center text-xs text-on-surface-variant">
+    <p><strong>Reskin</strong> — your products adapted to African features, for African merchants.</p>
+  </footer>
+
   @if (lightboxUrl()) {
     <app-image-lightbox [url]="lightboxUrl()!" (closed)="closeLightbox()" />
   }
+  </div>
 </div>

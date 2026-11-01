@@ -1,9 +1,9 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 
 import { ImageGenerationService } from '../../../core/services/image-generation.service';
 import { AppearanceSource, ApiErrorResponse, Mannequin } from '../../../core/models/generate.model';
-import { AppearanceSelect } from '../appearance-select/appearance-select';
 import { AspectRatioSelect } from '../aspect-ratio-select/aspect-ratio-select';
 import { ImageDropzone } from '../image-dropzone/image-dropzone';
 import { ImageLightbox } from '../image-lightbox/image-lightbox';
@@ -19,10 +19,10 @@ type Step = 1 | 2;
 @Component({
   selector: 'app-generator-page',
   imports: [
+    RouterLink,
     ImageDropzone,
     PromptInput,
     ProductInfoForm,
-    AppearanceSelect,
     AspectRatioSelect,
     MannequinPicker,
     ResultComparison,
@@ -30,6 +30,7 @@ type Step = 1 | 2;
     ErrorToast,
   ],
   templateUrl: './generator-page.html',
+  styleUrl: './generator-page.css',
 })
 export class GeneratorPage {
   private readonly imageGenerationService = inject(ImageGenerationService);
@@ -58,8 +59,9 @@ export class GeneratorPage {
   protected readonly selectedMannequinId = signal<string | null>(null);
   protected readonly prompt = signal('');
   protected readonly aspectRatio = signal('auto');
+  // Pinned value: "New person" (the appearance field was removed from the form).
   protected readonly appearanceSource = signal<AppearanceSource>('reference');
-  protected readonly keepBackground = signal(false);
+  protected readonly keepBackground = signal(true);
   protected readonly refinePrompt = signal('');
 
   protected readonly status = signal<Status>('idle');
@@ -80,19 +82,19 @@ export class GeneratorPage {
   );
 
   protected readonly promptLabel = computed(() =>
-    this.selectedFile() ? 'Décrivez la transformation souhaitée (optionnel)' : "Décrivez l'image à générer",
+    this.selectedFile() ? 'Describe the transformation you want (optional)' : 'Describe the image to generate',
   );
 
   protected readonly promptPlaceholder = computed(() =>
     this.selectedFile()
-      ? 'ex: remplace le fond par un décor de marché africain, lumière chaude'
-      : 'ex: Sac en cuir marron posé sur une table en bois, lumière naturelle, ambiance boutique haut de gamme',
+      ? 'e.g. replace the background with an African market scene, warm light'
+      : 'e.g. Brown leather bag on a wooden table, natural light, upscale boutique mood',
   );
 
   protected readonly promptHint = computed(() =>
     this.selectedFile()
-      ? 'Le produit (forme, couleurs, logo) est automatiquement préservé.'
-      : "Aucune image fournie : une nouvelle photo du produit est générée à partir de sa description.",
+      ? 'The product (shape, colours, logo) is automatically preserved.'
+      : 'No image provided: a new photo of the product is generated from its description.',
   );
 
   protected readonly canRefine = computed(
@@ -107,14 +109,6 @@ export class GeneratorPage {
       this.personImagePreviewUrl() ??
       this.mannequins().find((m) => m.id === this.selectedMannequinId())?.image_url ??
       null,
-  );
-
-  protected readonly nothingToDo = computed(
-    () =>
-      !!this.selectedFile() &&
-      !!this.personReferenceUrl() &&
-      this.appearanceSource() === 'original' &&
-      this.prompt().trim().length === 0,
   );
 
   protected goToStep2(): void {
@@ -245,7 +239,7 @@ export class GeneratorPage {
 
     this.http.get(currentResult, { responseType: 'blob' }).subscribe({
       next: (blob) => {
-        const file = new File([blob], 'retouche.png', { type: blob.type || 'image/png' });
+        const file = new File([blob], 'retouch.png', { type: blob.type || 'image/png' });
         this.imageGenerationService
           .generate(
             file,
@@ -269,7 +263,7 @@ export class GeneratorPage {
       },
       error: () => {
         this.status.set('error');
-        this.errorMessage.set("Impossible de récupérer l'image générée pour la retoucher.");
+        this.errorMessage.set("Couldn't fetch the generated image for retouching.");
       },
     });
   }
@@ -284,12 +278,12 @@ export class GeneratorPage {
         const objectUrl = URL.createObjectURL(blob);
         const anchor = document.createElement('a');
         anchor.href = objectUrl;
-        anchor.download = 'image-retouchee.png';
+        anchor.download = 'retouched-image.png';
         anchor.click();
         setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
       },
       error: () => {
-        this.errorMessage.set("Impossible de télécharger l'image retouchée.");
+        this.errorMessage.set("Couldn't download the retouched image.");
       },
     });
   }
@@ -300,8 +294,8 @@ export class GeneratorPage {
     this.errorMessage.set(
       apiError?.message ??
         (err.status === 0
-          ? 'Impossible de contacter le serveur. Vérifiez votre connexion.'
-          : 'Une erreur est survenue. Réessayez.'),
+          ? "Can't reach the server. Check your connection."
+          : 'Something went wrong. Please try again.'),
     );
   }
 

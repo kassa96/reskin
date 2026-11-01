@@ -15,7 +15,7 @@ export class AppearanceSelect {
   readonly value = model<AppearanceSource>('reference');
 
   protected readonly options: AppearanceOption[] = [
-    { value: 'reference', label: 'Nouvelle personne' },
-    { value: 'original', label: "Personne d'origine" },
+    { value: 'reference', label: 'New person' },
+    { value: 'original', label: 'Original person' },
   ];
 }

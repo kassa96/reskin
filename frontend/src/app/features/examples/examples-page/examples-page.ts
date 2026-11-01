@@ -25,7 +25,7 @@ export class ExamplesPage {
       },
       error: () => {
         this.error.set(
-          "Impossible de charger les exemples. Vérifiez que le backend est démarré (http://localhost:8000).",
+          "Couldn't load the examples. Make sure the backend is running (http://localhost:8000).",
         );
         this.loading.set(false);
       },

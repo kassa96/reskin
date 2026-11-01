@@ -1,0 +1,136 @@
+.outil {
+  --ink: #182220;
+  --muted: #55635e;
+  --line: #e4dccf;
+  --paper: #ffffff;
+  --sand: #faf5ec;
+  --pine: #0d2420;
+  --ember: #cf440b;
+  --ember-dark: #a83408;
+  --gold: #f2b705;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.outil .wrap {
+  max-width: 70rem;
+  margin-inline: auto;
+  padding-inline: 1.5rem;
+}
+
+.outil a:focus-visible,
+.outil button:focus-visible {
+  outline: 3px solid var(--ember);
+  outline-offset: 2px;
+  border-radius: 0.25rem;
+}
+
+/* ---------- Boutons ---------- */
+.outil .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: 0.7rem;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  border: 1px solid transparent;
+  padding: 0.7rem 1.3rem;
+  font-size: 0.95rem;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.outil .btn:active { transform: translateY(1px); }
+.outil .btn-primary { background: var(--ember); color: #fff; }
+.outil .btn-primary:hover {
+  background: var(--ember-dark);
+  box-shadow: 0 12px 24px -12px rgba(207, 68, 11, 0.7);
+}
+.outil .btn-nav { padding: 0.55rem 1.1rem; font-size: 0.88rem; }
+
+/* ---------- Navigation (identique à l'accueil) ---------- */
+.outil .nav {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+.outil .nav-row {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding-block: 0.65rem;
+}
+.outil .brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-decoration: none;
+  color: var(--ink);
+  margin-right: auto;
+}
+.outil .brand-mark {
+  display: inline-flex;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 0.6rem;
+  background: var(--pine);
+  color: var(--gold);
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.outil .brand-text {
+  font-family: "Fraunces", Georgia, serif;
+  font-weight: 700;
+  font-size: 1.3rem;
+  line-height: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.outil .brand-text em {
+  font-family: "Roboto", system-ui, sans-serif;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+.outil .nav-links { display: flex; gap: 1.25rem; }
+.outil .nav-links a {
+  position: relative;
+  padding-bottom: 0.15rem;
+  color: var(--muted);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.93rem;
+  transition: color 0.15s ease;
+}
+.outil .nav-links a::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 100%;
+  background: var(--ember);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.2s ease;
+}
+.outil .nav-links a:hover { color: var(--ember-dark); }
+.outil .nav-links a:hover::after { transform: scaleX(1); }
+
+@media (max-width: 760px) {
+  .outil .nav-links { display: none; }
+  .outil .brand-text em { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .outil * { transition: none !important; }
+}

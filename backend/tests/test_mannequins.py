@@ -29,7 +29,7 @@ def test_studio_dir_preferred_when_it_has_images(tmp_path, monkeypatch):
     (item,) = mannequins.list_mannequins()
     assert item["id"] == "femme_blanche_1"
     assert item["filename"] == "femme_blanche_1_studio.png"
-    assert item["label"] == "Femme (peau claire) 1"
+    assert item["label"] == "Woman (light skin) 1"
     assert mannequins.get_mannequin_path("femme_blanche_1") == studio / "femme_blanche_1_studio.png"
 
 

@@ -7,10 +7,10 @@ _ALLOWED_EXTENSIONS = {".jpeg", ".jpg", ".png", ".webp"}
 _STUDIO_SUFFIX = "_studio"
 
 _CATEGORY_LABELS = {
-    "femme_noire": "Femme (peau noire)",
-    "femme_blanche": "Femme (peau claire)",
-    "homme_noir": "Homme (peau noire)",
-    "homme_blanc": "Homme (peau claire)",
+    "femme_noire": "Woman (dark skin)",
+    "femme_blanche": "Woman (light skin)",
+    "homme_noir": "Man (dark skin)",
+    "homme_blanc": "Man (light skin)",
 }
 
 

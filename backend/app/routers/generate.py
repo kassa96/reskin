@@ -68,8 +68,8 @@ def _detect_image_mime(contents: bytes) -> str:
             _error(
                 400,
                 "unreadable_image",
-                "L'image semble corrompue, tronquée ou illisible. "
-                "Envoyez un fichier JPG, PNG ou WEBP valide.",
+                "The image looks corrupt, truncated or unreadable. "
+                "Send a valid JPG, PNG or WEBP file.",
             )
         )
     return mime
@@ -78,7 +78,7 @@ def _detect_image_mime(contents: bytes) -> str:
 async def _read_and_validate_image(image: UploadFile) -> bytes:
     if image.content_type not in settings.allowed_mime_types:
         raise _ImageValidationError(
-            _error(400, "unsupported_format", "Le fichier doit être au format JPG, PNG ou WEBP.")
+            _error(400, "unsupported_format", "The file must be in JPG, PNG or WEBP format.")
         )
 
     contents = await image.read()
@@ -88,7 +88,7 @@ async def _read_and_validate_image(image: UploadFile) -> bytes:
             _error(
                 413,
                 "file_too_large",
-                f"L'image dépasse la taille maximale autorisée ({settings.max_upload_mb} Mo).",
+                f"Image exceeds the maximum allowed size ({settings.max_upload_mb} MB).",
             )
         )
     _detect_image_mime(contents)
@@ -217,28 +217,28 @@ async def generate(
         return _error(
             400,
             "empty_product_name",
-            "Merci de renseigner le nom du produit.",
+            "Please enter the product name.",
         )
 
     if not product_description or not product_description.strip():
         return _error(
             400,
             "empty_product_description",
-            "Merci de renseigner la description du produit.",
+            "Please enter the product description.",
         )
 
     if aspect_ratio not in ALLOWED_ASPECT_RATIOS:
         return _error(
             400,
             "invalid_aspect_ratio",
-            "Format d'image invalide.",
+            "Invalid image format.",
         )
 
     if appearance_source not in ("reference", "original"):
         return _error(
             400,
             "invalid_appearance_source",
-            "Choix d'apparence invalide.",
+            "Invalid appearance choice.",
         )
 
     has_image = image is not None and bool(image.filename)
@@ -252,7 +252,7 @@ async def generate(
     if mannequin_id_value and not has_uploaded_person_image:
         mannequin_path = get_mannequin_path(mannequin_id_value)
         if mannequin_path is None:
-            return _error(400, "mannequin_not_found", "Le mannequin sélectionné est introuvable.")
+            return _error(400, "mannequin_not_found", "The selected model couldn't be found.")
 
     has_person_image = has_uploaded_person_image or mannequin_path is not None
 
@@ -260,22 +260,22 @@ async def generate(
         return _error(
             400,
             "empty_input",
-            "Ajoutez une image, décrivez l'image à générer, ou les deux.",
+            "Add an image, describe the image to generate, or both.",
         )
 
     if has_person_image and not has_image:
         return _error(
             400,
             "person_image_without_product_image",
-            "Ajoutez d'abord une photo du produit pour pouvoir y remplacer la personne.",
+            "Add a product photo first so the person in it can be replaced.",
         )
 
     if has_person_image and appearance_source == "original" and not prompt_value:
         return _error(
             400,
             "nothing_to_do",
-            "Rien à transformer : décrivez la retouche souhaitée ou choisissez "
-            "la nouvelle personne pour l'apparence.",
+            "Nothing to transform: describe the retouch you want or pick "
+            "the new person for the appearance.",
         )
 
     contents = b""
@@ -349,33 +349,33 @@ async def generate(
         return _error(
             502,
             "prompt_generation_error",
-            "Impossible de générer le prompt à partir des informations produit. Réessayez.",
+            "Couldn't build the prompt from the product info. Try again.",
         )
     except MetaImageTimeoutError:
         return _error(
             504,
             "meta_timeout",
-            "Le service de génération met trop de temps à répondre. Réessayez.",
+            "The generation service is taking too long to respond. Try again.",
         )
     except MetaImageContentPolicyError:
         return _error(
             422,
             "content_policy_violation",
-            "Cette combinaison de photos a été bloquée par le filtre de contenu du service "
-            "de génération. Essayez avec d'autres photos.",
+            "This photo combination was blocked by the generation service's content "
+            "filter. Try different photos.",
         )
     except MetaImageApiError:
         return _error(
             502,
             "meta_api_error",
-            "Le service de génération d'image a rencontré une erreur. Réessayez.",
+            "The image generation service hit an error. Try again.",
         )
     except Exception:
         logger.exception("Unexpected error during image generation")
         return _error(
             500,
             "internal_error",
-            "Une erreur inattendue est survenue. Réessayez.",
+            "An unexpected error occurred. Try again.",
         )
     finally:
         for path in tmp_paths:

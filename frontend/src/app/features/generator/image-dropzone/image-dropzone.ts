@@ -11,9 +11,9 @@ const MAX_SIZE_MB = 10;
 export class ImageDropzone {
   readonly previewUrl = input<string | null>(null);
   readonly label = input(
-    'Glissez-déposez une image produit ici, ou cliquez pour en sélectionner une (optionnel)',
+    'Drag and drop a product image here, or click to select one (optional)',
   );
-  readonly altText = input('Aperçu du produit');
+  readonly altText = input('Product preview');
   readonly compact = input(false);
 
   readonly fileSelected = output<File>();
@@ -67,11 +67,11 @@ export class ImageDropzone {
 
   private handleFile(file: File): void {
     if (!ACCEPTED_TYPES.includes(file.type)) {
-      this.validationError.emit('Format non supporté. Utilisez JPG, PNG ou WEBP.');
+      this.validationError.emit('Unsupported format. Use JPG, PNG or WEBP.');
       return;
     }
     if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-      this.validationError.emit(`L'image dépasse la taille maximale autorisée (${MAX_SIZE_MB} Mo).`);
+      this.validationError.emit(`Image exceeds the maximum allowed size (${MAX_SIZE_MB} MB).`);
       return;
     }
     this.fileSelected.emit(file);

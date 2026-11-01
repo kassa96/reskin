@@ -24,7 +24,7 @@
           />
         </svg>
         <span class="text-sm">{{ label() }}</span>
-        <span class="text-xs text-on-surface-variant/70">JPG, PNG, WEBP — 10 Mo max</span>
+        <span class="text-xs text-on-surface-variant/70">JPG, PNG, WEBP — 10 MB max</span>
       </div>
     }
     <input type="file" accept="image/jpeg,image/png,image/webp" class="hidden" (change)="onFileInputChange($event)" />
@@ -34,7 +34,7 @@
     <button
       type="button"
       class="absolute top-2 left-2 flex h-8 w-8 items-center justify-center rounded-full bg-surface/90 text-on-surface-variant shadow-elevation-1 transition-colors hover:bg-surface hover:text-on-surface"
-      title="Agrandir l'aperçu"
+      title="Enlarge preview"
       (click)="onZoom($event)"
     >
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-4 w-4">
@@ -51,7 +51,7 @@
       class="absolute top-2 right-2 rounded-full bg-surface/90 px-3 py-1.5 text-xs font-medium text-on-surface-variant shadow-elevation-1 transition-colors hover:bg-surface hover:text-on-surface"
       (click)="onRemove($event)"
     >
-      Retirer
+      Remove
     </button>
   }
 </div>

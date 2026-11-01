@@ -7,7 +7,7 @@ import { Component, HostListener, input, output } from '@angular/core';
 })
 export class ImageLightbox {
   readonly url = input.required<string>();
-  readonly altText = input('Aperçu agrandi');
+  readonly altText = input('Enlarged preview');
   readonly closed = output<void>();
 
   @HostListener('document:keydown.escape')

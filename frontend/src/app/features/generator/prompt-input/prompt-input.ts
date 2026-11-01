@@ -8,9 +8,9 @@ import { FormsModule } from '@angular/forms';
 })
 export class PromptInput {
   readonly value = model('');
-  readonly label = input('Décrivez la transformation souhaitée');
+  readonly label = input('Describe the transformation you want');
   readonly placeholder = input(
-    'ex: remplace le fond par un décor de marché africain, lumière chaude',
+    'e.g. replace the background with an African market setting, warm light',
   );
-  readonly hint = input('Le produit (forme, couleurs, logo) est automatiquement préservé.');
+  readonly hint = input('The product (shape, colours, logo) is automatically preserved.');
 }

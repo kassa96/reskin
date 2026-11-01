@@ -22,11 +22,11 @@ export class ResultComparison {
   protected readonly downloading = signal(false);
 
   protected readonly panels = computed<ComparisonPanel[]>(() => {
-    const panels: ComparisonPanel[] = [{ label: 'Avant', url: this.beforeUrl() }];
+    const panels: ComparisonPanel[] = [{ label: 'Before', url: this.beforeUrl() }];
     if (this.personUrl()) {
-      panels.push({ label: 'Personne', url: this.personUrl() });
+      panels.push({ label: 'Person', url: this.personUrl() });
     }
-    panels.push({ label: 'Après', url: this.afterUrl() });
+    panels.push({ label: 'After', url: this.afterUrl() });
     return panels;
   });
 
@@ -41,7 +41,7 @@ export class ResultComparison {
         const objectUrl = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = objectUrl;
-        link.download = 'produit-personnalise.png';
+        link.download = 'customized-product.png';
         link.click();
         URL.revokeObjectURL(objectUrl);
         this.downloading.set(false);

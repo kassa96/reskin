@@ -304,7 +304,7 @@ def build_text_to_image_prompt(
         [{"type": "text", "text": user_text}],
     )
     if not enhanced:
-        raise PromptGenerationError("Le modèle n'a renvoyé aucun prompt.")
+        raise PromptGenerationError("The model returned no prompt.")
 
     logger.info("Enhanced text-to-image prompt generated (%d chars)", len(enhanced))
     return enhanced
