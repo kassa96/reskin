@@ -1,6 +1,6 @@
-# Déploiement sans nom de domaine : accès via http://IP_DU_VPS:8080
+# Déploiement sans nom de domaine : accès via http://IP_DU_VPS:8081
 # Le service "web" (nginx) sert Angular et proxie /api/* + /static/* vers "api".
-# Le backend n'est PAS exposé publiquement : seul le port 8080 est ouvert.
+# Le backend n'est PAS exposé publiquement : seul le port 8081 est ouvert.
 services:
   api:
     build: ./backend
@@ -30,7 +30,7 @@ services:
     build: ./frontend
     container_name: reskin-web
     ports:
-      - "8080:80"
+      - "8081:80"
     depends_on:
       api:
         condition: service_healthy
