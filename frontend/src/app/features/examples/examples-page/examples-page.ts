@@ -25,7 +25,7 @@ export class ExamplesPage {
       },
       error: () => {
         this.error.set(
-          "Couldn't load the examples. Make sure the backend is running (http://localhost:8000).",
+          "Couldn't load the examples. Make sure the backend is running.",
         );
         this.loading.set(false);
       },

@@ -1,0 +1,51 @@
+# Déploiement sans nom de domaine : accès via http://IP_DU_VPS:8080
+# Le service "web" (nginx) sert Angular et proxie /api/* + /static/* vers "api".
+# Le backend n'est PAS exposé publiquement : seul le port 8080 est ouvert.
+services:
+  api:
+    build: ./backend
+    container_name: reskin-api
+    env_file:
+      - ./backend/.env
+    expose:
+      - "8000"
+    volumes:
+      - api-cache:/code/.cache
+    networks:
+      - reskin-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+
+  web:
+    build: ./frontend
+    container_name: reskin-web
+    ports:
+      - "8080:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - reskin-net
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+volumes:
+  api-cache:
+
+networks:
+  reskin-net:
+    driver: bridge
