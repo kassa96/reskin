@@ -93,7 +93,7 @@ DEPLOIEMENT.md    VPS deployment procedure (Hostinger, in French)
 
 ## Deploy on a VPS
 
-See [DEPLOIEMENT.md](/home/diallo/github/reskin/DEPLOIEMENT.md) (in French):
+See [DEPLOIEMENT.md](/home/diallo/github/reskin/DEPLOIEMENT.md):
 access via `http://VPS_IP:8081`, port to open in the firewall, `CORS_ORIGINS`
 to adjust.
 

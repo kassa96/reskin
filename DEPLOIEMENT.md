@@ -1,100 +1,100 @@
-# Déploiement — Reskin (sans nom de domaine)
+# Deployment — Reskin (no domain name)
 
-Site accessible via `http://IP_DU_VPS:8081`, sans toucher aux autres sites du VPS.
+Site available at `http://VPS_IP:8081`, without touching the other sites on the VPS.
 
 ## Architecture
 
 ```text
-Navigateur → http://IP:8081 → web (nginx + Angular)
+Browser → http://IP:8081 → web (nginx + Angular)
                                    ├─ /api/*    → api:8000 (FastAPI)
-                                   └─ /static/* → api:8000 (visuels)
+                                   └─ /static/* → api:8000 (visuals)
 ```
 
-- `api` : backend FastAPI, **non exposé** publiquement (réseau Docker interne).
-- `web` : seul port ouvert (`8081`), sert le frontend et proxie l'API.
-  Le frontend appelle l'API en relatif, donc pas de CORS à contourner
-  et aucun nom de domaine requis.
+- `api`: FastAPI backend, **not** publicly exposed (internal Docker network).
+- `web`: only open port (`8081`), serves the frontend and proxies the API.
+  The frontend calls the API with relative paths, so no CORS to work around
+  and no domain name required.
 
-## Prérequis (sur le VPS)
+## Prerequisites (on the VPS)
 
-- Docker + plugin compose : `docker --version` et `docker compose version`
-- Port `8081/tcp` ouvert dans le firewall Hostinger
-- Ta clé `META_API_KEY` (Meta Model API)
+- Docker + compose plugin: `docker --version` and `docker compose version`
+- Port `8081/tcp` open in the Hostinger firewall
+- Your `META_API_KEY` (Meta Model API)
 
-## 1. Récupérer le projet
+## 1. Get the project
 
 ```bash
-git clone <URL_DU_REPO> reskin
+git clone <REPO_URL> reskin
 cd reskin
 ```
 
-## 2. Configurer l'environnement
+## 2. Configure the environment
 
 ```bash
 cp backend/.env.example backend/.env
 nano backend/.env
 ```
 
-Contenu requis :
+Required content:
 
 ```env
-META_API_KEY=<ta_clé_meta_model_api>
-CORS_ORIGINS=["http://IP_DU_VPS:8081"]
+META_API_KEY=<your_meta_model_api_key>
+CORS_ORIGINS=["http://VPS_IP:8081"]
 ```
 
-> Remplace `IP_DU_VPS` par l'IP publique du VPS.
-> `CORS_ORIGINS` doit contenir l'URL publique **exacte** (format JSON),
-> sinon le navigateur bloquera les appels à l'API.
+> Replace `VPS_IP` with the public IP of the VPS.
+> `CORS_ORIGINS` must contain the **exact** public URL (JSON format),
+> otherwise the browser will block API calls.
 
-## 3. Lancer
+## 3. Launch
 
 ```bash
 docker compose up -d --build
 ```
 
-## 4. Vérifier
+## 4. Verify
 
 ```bash
-curl http://localhost:8081/api/health   # attendu : {"status":"ok"}
+curl http://localhost:8081/api/health   # expected: {"status":"ok"}
 docker compose ps                        # api: healthy, web: running
 ```
 
-Puis ouvre `http://IP_DU_VPS:8081` dans un navigateur :
-teste un upload + génération, et l'affichage des exemples/mannequins
-(ce sont les routes `/static/*` du backend).
+Then open `http://VPS_IP:8081` in a browser:
+test an upload + generation, and the display of examples/mannequins
+(these are the backend `/static/*` routes).
 
 ## Maintenance
 
 ```bash
-docker compose logs -f            # voir les logs (api + web)
-docker compose logs -f api        # backend seul
+docker compose logs -f            # see logs (api + web)
+docker compose logs -f api        # backend only
 
-# Mise à jour après un git pull
+# Update after a git pull
 git pull
 docker compose up -d --build
 
-# Redémarrage simple
+# Simple restart
 docker compose restart
 
-# Arrêt complet (le volume api-cache est conservé)
+# Full stop (the api-cache volume is kept)
 docker compose down
 ```
 
-## Dépannage
+## Troubleshooting
 
-| Symptôme | Cause probable | Action |
+| Symptom | Likely cause | Action |
 |---|---|---|
-| `{"status":"ok"}` OK mais page blanche | Build frontend | `docker compose logs web`, rebuild |
-| Erreurs CORS dans la console navigateur | `CORS_ORIGINS` incorrect | Corriger `backend/.env`, puis `docker compose up -d api` |
-| `api` en `unhealthy` | Clé manquante/invalide | Vérifier `META_API_KEY`, `docker compose logs api` |
-| Timeout à la génération | Normal si > 120 s | Les timeouts sont à 120 s (backend 90 s) ; relancer |
-| Port 8081 injoignable de l'extérieur | Firewall | Ouvrir `8081/tcp` côté Hostinger |
+| `{"status":"ok"}` OK but blank page | Frontend build | `docker compose logs web`, rebuild |
+| CORS errors in the browser console | Wrong `CORS_ORIGINS` | Fix `backend/.env`, then `docker compose up -d api` |
+| `api` `unhealthy` | Missing/invalid key | Check `META_API_KEY`, `docker compose logs api` |
+| Generation timeout | Normal if > 120 s | Timeouts are 120 s (backend 90 s); retry |
+| Port 8081 unreachable from outside | Firewall | Open `8081/tcp` on the Hostinger side |
 
-## Optionnel : passer par le nginx du VPS
+## Optional: go through the VPS nginx
 
-Par défaut inutile. À faire uniquement pour centraliser logs/HTTPS :
+Useless by default. Only do this to centralize logs/HTTPS:
 
-1. Dans `docker-compose.yml`, remplace `"8081:80"` par `"127.0.0.1:8081:80"`.
+1. In `docker-compose.yml`, replace `"8081:80"` with `"127.0.0.1:8081:80"`.
 2. `sudo cp deploy/nginx-vps-reskin.conf /etc/nginx/conf.d/`
-3. Remplace `IP_DU_VPS` si besoin, puis `sudo nginx -t && sudo systemctl reload nginx`.
-4. `docker compose up -d` puis accès toujours via `http://IP_DU_VPS:8081`.
+3. Replace `VPS_IP` if needed, then `sudo nginx -t && sudo systemctl reload nginx`.
+4. `docker compose up -d`, then still access via `http://VPS_IP:8081`.
