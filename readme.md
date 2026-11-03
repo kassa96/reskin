@@ -52,6 +52,7 @@ Backend (terminal 1):
 
 ```bash
 cd backend
+uv sync   # creates .venv and installs dependencies from uv.lock
 cp .env.example .env   # then set META_API_KEY
 uv run uvicorn app.main:app --reload --port 8000
 ```
