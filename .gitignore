@@ -1,14 +1,44 @@
-# Python / backend
-backend/.venv/
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# Backend FastAPI : secrets + cache régénérable (reconstruit au runtime par examples.py)
 backend/.env
-**/__pycache__/
-*.pyc
+.env
+backend/.cache/
+backend/manoquin
 
-# Node / frontend
-frontend/node_modules/
-frontend/dist/
-frontend/.angular/
+# Node / Angular : dépendances + build + cache CLI
+node_modules/
+dist/
+.angular/
+out-tsc/
+coverage/
 
-# OS / editor
+# Logs
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Éditeurs / IDE
 *.swp
+*.swo
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.sublime-workspace
+.history/
