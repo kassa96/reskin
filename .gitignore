@@ -13,7 +13,8 @@ venv/
 backend/.env
 .env
 backend/.cache/
-backend/manoquin
+backend/manoquin/
+backend/scripts/
 
 # Node / Angular : dépendances + build + cache CLI
 node_modules/
