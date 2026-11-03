@@ -204,6 +204,7 @@ export class GeneratorPage {
 
     this.status.set('loading');
     this.errorMessage.set(null);
+    this.scrollToResult();
 
     this.imageGenerationService
       .generate(
@@ -301,5 +302,21 @@ export class GeneratorPage {
 
   protected dismissError(): void {
     this.errorMessage.set(null);
+  }
+
+  private scrollToResult(): void {
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // The result block only appears in the DOM after the next change-detection
+    // pass, so retry briefly until it exists before scrolling to it.
+    let attempts = 0;
+    const tryScroll = (): void => {
+      const target = document.getElementById('generation-result');
+      if (target) {
+        target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+      } else if (attempts++ < 20) {
+        setTimeout(tryScroll, 50);
+      }
+    };
+    requestAnimationFrame(tryScroll);
   }
 }

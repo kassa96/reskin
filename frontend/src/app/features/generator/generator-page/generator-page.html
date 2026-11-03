@@ -210,12 +210,15 @@
       </div>
 
       @if (status() === 'loading' || status() === 'success') {
-        <app-result-comparison
-          [beforeUrl]="previewUrl()"
-          [personUrl]="personReferenceUrl()"
-          [afterUrl]="resultUrl()"
-          (imageClicked)="openLightbox($event)"
-        />
+        <div id="generation-result" class="scroll-mt-24">
+          <app-result-comparison
+            [beforeUrl]="previewUrl()"
+            [personUrl]="personReferenceUrl()"
+            [afterUrl]="resultUrl()"
+            [loading]="status() === 'loading'"
+            (imageClicked)="openLightbox($event)"
+          />
+        </div>
       }
 
       @if (refinedUrl()) {
