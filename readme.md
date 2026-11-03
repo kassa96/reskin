@@ -1,96 +1,103 @@
-# Reskin — Personnalisation d'image produit
+# Reskin — AI product-image personalization for the African market
 
-SaaS pour e-commerçants : l'utilisateur upload une image produit + un prompt
-texte, l'application génère une nouvelle image adaptée (décor, mannequin,
-ambiance) tout en préservant le produit. Galerie d'exemples et de mannequins
-incluse, avec affichage avant/après et téléchargement du résultat.
+Reskin is an AI built to personalize product images coming from marketplace
+platforms like Alibaba or AliExpress: these generic visuals, designed for other
+markets, are regenerated with African features and realities — African models,
+local decors, atmospheres and scenes of everyday life — while faithfully
+preserving the product.
+
+Designed for e-merchants selling in Africa: they import a generic product
+image, add a text prompt, and the AI regenerates the visual in an African
+setting — model, decor and atmosphere — without altering the product. Built-in
+gallery of examples and models, with before/after comparison and result download.
 
 ## Stack
 
-- **Backend** : Python 3.12, **FastAPI** (`backend/`)
-- **Frontend** : **Angular 20**, Tailwind CSS 4 (`frontend/`)
-- **IA** : Meta Muse Image `muse-image-1.0` (retouche/génération) et
-  Muse Wonder `muse-wonder-1.0` (enrichissement du prompt), via la Meta Model API
-- **Déploiement** : Docker + Docker Compose (nginx sert le frontend et proxie
-  l'API, le backend n'est pas exposé publiquement)
+- **Backend**: Python 3.12, **FastAPI** (`backend/`)
+- **Frontend**: **Angular 20**, Tailwind CSS 4 (`frontend/`)
+- **AI**: Meta Muse Image `muse-image-1.0` (edit/generation) and
+  Muse Wonder `muse-wonder-1.0` (prompt enrichment), via the Meta Model API
+- **Deployment**: Docker + Docker Compose (nginx serves the frontend and proxies
+  the API; the backend is not publicly exposed)
 
-## Prérequis
+## Prerequisites
 
-- `META_API_KEY` (clé Meta Model API, alias accepté : `MODEL_API_KEY`)
-- Pour le lancement Docker (recommandé) : Docker + plugin compose
-- Pour le lancement dev : [uv](https://docs.astral.sh/uv/), Node.js + npm
+- `META_API_KEY` (Meta Model API key, accepted alias: `MODEL_API_KEY`)
+- For the Docker run (recommended): Docker + compose plugin
+- For the dev run: [uv](https://docs.astral.sh/uv/), Node.js + npm
   (Angular CLI via `npx ng`)
 
-## Lancement avec Docker (recommandé)
+## Run with Docker (recommended)
 
 ```bash
-cp backend/.env.example backend/.env   # puis renseigner META_API_KEY
+cp backend/.env.example backend/.env   # then set META_API_KEY
 docker compose up -d --build
 ```
 
-Ouvrir [http://localhost:8081](http://localhost:8081).
-Vérifier : `curl http://localhost:8081/api/health` doit répondre `{"status":"ok"}`.
+Open [http://localhost:8081](http://localhost:8081).
+Check: `curl http://localhost:8081/api/health` should answer `{"status":"ok"}`.
 
-`backend/.env` requis :
+Required `backend/.env`:
 
 ```env
-META_API_KEY=<votre_clé_meta_model_api>
+META_API_KEY=<your_meta_model_api_key>
 CORS_ORIGINS=["http://localhost:8081"]
 ```
 
-Le backend refuse de démarrer si `META_API_KEY` est absente ou vide.
+The backend refuses to start if `META_API_KEY` is missing or empty.
 
-## Lancement en dev (sans Docker)
+## Run in dev (no Docker)
 
-Backend (terminal 1) :
+Backend (terminal 1):
 
 ```bash
 cd backend
-cp .env.example .env   # puis renseigner META_API_KEY
+cp .env.example .env   # then set META_API_KEY
 uv run uvicorn app.main:app --reload --port 8000
 ```
 
-Frontend (terminal 2) :
+Frontend (terminal 2):
 
 ```bash
 cd frontend
-npm install   # uniquement la première fois
+npm install   # first time only
 npm start
 ```
 
-Ouvrir [http://localhost:4200](http://localhost:4200).
-Vérifier le backend : [http://localhost:8000/api/health](http://localhost:8000/api/health).
+Open [http://localhost:4200](http://localhost:4200).
+Check the backend: [http://localhost:8000/api/health](http://localhost:8000/api/health).
 
 ## API
 
-| Méthode | Route | Description |
+| Method | Route | Description |
 |---|---|---|
-| GET | `/api/health` | Santé du backend (`{"status":"ok"}`) |
-| POST | `/api/generate` | Génère une image (multipart : image + prompt + mannequin) |
-| GET | `/api/exemples` | Galerie d'exemples de transformations |
-| GET | `/api/mannequins` | Liste des mannequins disponibles |
+| GET | `/api/health` | Backend health (`{"status":"ok"}`) |
+| POST | `/api/generate` | Generates an image (multipart: image + prompt + model) |
+| GET | `/api/exemples` | Gallery of transformation examples |
+| GET | `/api/mannequins` | List of available models |
 
-Visuels servis en statique : `/static/mannequins/*`, `/static/exemples/*`.
+Visuals served statically: `/static/mannequins/*`, `/static/exemples/*`.
 
-## Structure du projet
+## Project structure
 
 ```text
 backend/          FastAPI (app/, tests, Dockerfile)
-backend/exemple_transformation/  visuels d'exemples servis par l'API
-backend/manoquin*  visuels de mannequins servis par l'API
+backend/exemple_transformation/  example visuals served by the API
+backend/manoquin*  model visuals served by the API
 frontend/         Angular (src/, nginx.conf, Dockerfile)
-deploy/           config nginx optionnelle pour un VPS déjà occupé
-docker-compose.yml  api (interne :8000) + web (public :8081)
-DEPLOIEMENT.md    procédure de déploiement sur VPS (Hostinger)
+deploy/           optional nginx config for an already-busy VPS
+docker-compose.yml  api (internal :8000) + web (public :8081)
+DEPLOIEMENT.md    VPS deployment procedure (Hostinger, in French)
 ```
 
-## Déploiement sur VPS
+## Deploy on a VPS
 
-Voir [DEPLOIEMENT.md](/home/diallo/github/reskin/DEPLOIEMENT.md) : accès via
-`http://IP_DU_VPS:8081`, port à ouvrir dans le firewall, `CORS_ORIGINS` à ajuster.
+See [DEPLOIEMENT.md](/home/diallo/github/reskin/DEPLOIEMENT.md) (in French):
+access via `http://VPS_IP:8081`, port to open in the firewall, `CORS_ORIGINS`
+to adjust.
 
-## Sécurité
+## Security
 
-`META_API_KEY` reste toujours côté backend (`backend/.env`, jamais commité —
-voir `.gitignore`). Le frontend ne l'appelle jamais directement : tous les
-appels IA transitent par les routes `/api/*` du backend.
+`META_API_KEY` always stays on the backend side (`backend/.env`, never
+committed — see `.gitignore`). The frontend never calls it directly: every AI
+call goes through the backend `/api/*` routes.
