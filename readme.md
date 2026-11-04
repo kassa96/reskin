@@ -27,6 +27,10 @@ gallery of examples and models, with before/after comparison and result download
 - For the dev run: [uv](https://docs.astral.sh/uv/), Node.js + npm
   (Angular CLI via `npx ng`)
 
+## Live site
+
+Open [http://76.13.25.132:8081/](http://76.13.25.132:8081/).
+
 ## Run with Docker (recommended)
 
 ```bash
@@ -102,3 +106,36 @@ to adjust.
 `META_API_KEY` always stays on the backend side (`backend/.env`, never
 committed — see `.gitignore`). The frontend never calls it directly: every AI
 call goes through the backend `/api/*` routes.
+
+## Image generation process
+
+The generate endpoint runs two modes: full creation from text when no
+product photo is provided, and retouch when a product photo is provided.
+
+Text-to-image mode (no product photo): Muse Wonder builds a photorealistic
+prompt from the product name, description and requested scene, then Muse
+Image generates the PNG image from that prompt.
+
+Edit mode (with a product photo): the photo is retouched step by step.
+
+1. Validation: product name and description are required. Only JPG, PNG and
+   WEBP files are accepted, up to 10 MB, and the image format is checked.
+2. Person swap (only when a reference person or mannequin is provided with
+   the new-person option): the reference photo is first standardized to a
+   clean full-body studio portrait, then swapped directly onto the original
+   photo. Framing, pose, background and lighting stay as in the original.
+   Only face, hair, skin tone and outfit change. The product itself always
+   stays unchanged. If no transformation text was given, this swapped image
+   is the final result.
+3. Prompt enrichment: Muse Wonder receives the source photo plus the product
+   name, description, requested transformation and constraints (background
+   kept as is, person identity preserved). It returns a single concrete edit
+   prompt that locks the product (shape, colors, logo, proportions). If the
+   model stays silent, the raw transformation or a static studio prompt is
+   used instead.
+4. Final edit: the source image and the enriched prompt are sent to Muse
+   Image with fidelity hints (product unchanged, correct hand anatomy,
+   high-resolution studio finish). The API returns an image URL sent back
+   in the response.
+5. Cleanup: every temporary file created for the request is deleted. The
+   bundled mannequin visuals are never deleted.
