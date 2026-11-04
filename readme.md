@@ -80,6 +80,8 @@ docker compose down
 Backend (terminal 1):
 
 ```bash
+git clone https://github.com/kassa96/reskin.git
+cd reskin
 cd backend
 uv sync   # creates .venv and installs dependencies from uv.lock
 cp .env.example .env   # then set META_API_KEY
