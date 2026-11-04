@@ -32,14 +32,11 @@ gallery of examples and models, with before/after comparison and result download
 Open [http://76.13.25.132:8081/](http://76.13.25.132:8081/).
 
 ## Run with Docker (recommended)
-
 ```bash
+git clone https://github.com/kassa96/reskin.git
+cd reskin
 cp backend/.env.example backend/.env   # then set META_API_KEY
-docker compose up -d --build
 ```
-
-Open [http://localhost:8081](http://localhost:8081).
-Check: `curl http://localhost:8081/api/health` should answer `{"status":"ok"}`.
 
 Required `backend/.env`:
 
@@ -48,8 +45,36 @@ META_API_KEY=<your_meta_model_api_key>
 CORS_ORIGINS=["http://localhost:8081"]
 ```
 
+
+```bash
+# create image and run containers
+docker compose up -d --build
+```
+
+
 The backend refuses to start if `META_API_KEY` is missing or empty.
 
+
+Open [http://localhost:8081](http://localhost:8081).
+Check: `curl http://localhost:8081/api/health` should answer `{"status":"ok"}`.
+
+### Logs
+
+```bash
+docker compose logs -f api   # backend (FastAPI)
+docker compose logs -f web   # frontend (nginx / Angular)
+docker compose logs -f       # les deux services
+```
+
+### Commandes utiles
+
+```bash
+docker compose ps              
+docker compose restart         
+docker compose up -d --build   
+docker compose down   
+
+```
 ## Run in dev (no Docker)
 
 Backend (terminal 1):
