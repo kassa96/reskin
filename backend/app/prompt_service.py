@@ -78,9 +78,12 @@ _IDENTITY_SWAP_PROMPT = (
     "No trait from Image 1's person may remain: do not keep the original face, "
     "hairstyle, skin tone or body. "
     "Apply Image 2's exact skin tone uniformly to EVERY visible skin area — face, "
-    "neck, ears, arms, hands and fingers, legs, feet and toes. The complexion must "
-    "be perfectly even and natural across the whole body: no patch, especially on "
-    "hands or feet, may keep Image 1's original skin color. "
+    "neck, ears, arms, hands and fingers, legs, feet and toes, including ankles — "
+    "uniformly from head to feet without interruption. The complexion must be one "
+    "single, perfectly even and natural skin tone across the whole body, all the "
+    "way down to the feet: no patch, especially on hands or feet, may keep Image 1's "
+    "original skin color, with no gradient, no lighter or darker zone, and no hand, "
+    "leg or foot keeping Image 1's original skin color. "
     "Exception with absolute priority: the product itself stays exactly as in Image 1 "
     "in all cases — if the product is a garment worn by the person, keep that garment "
     "exactly as worn and transfer only face, hair and skin tone. "
@@ -245,8 +248,9 @@ def build_enhanced_prompt(
             "identity as in the provided photo — same face, facial features, "
             "hairstyle, hair color and skin tone. Transfer is complete: do not "
             "morph, blend or dilute the person's traits toward any other person. "
-            "Keep the skin tone perfectly even and natural over the whole body, "
-            "including hands and feet.\n"
+            "Keep one single skin tone perfectly even and natural over the whole "
+            "body, from head to feet including hands and feet, with no patch or "
+            "gradient.\n"
         )
 
     enhanced = _chat_completion(
